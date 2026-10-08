@@ -1,0 +1,8 @@
+pypdf>=5.0,<7.0
+streamlit>=1.41,<1.50
+fastapi>=0.115,<0.129
+neo4j>=5.28,<6.0
+python-multipart>=0.0.20,<1.0
+requests>=2.31,<3.0
+scikit-learn>=1.4,<1.7
+uvicorn>=0.30,<0.40
