@@ -1,0 +1,14 @@
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: candidate-scoring-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}"
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  neo4j_data:
