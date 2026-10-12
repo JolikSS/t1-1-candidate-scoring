@@ -1,9 +1,9 @@
-"""Parse machine-readable TXT and PDF resumes into text and skill mentions."""
+"""Extract only useful, de-identified resume fields from text PDFs and TXT."""
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from io import BytesIO
 from pathlib import Path
 
@@ -11,7 +11,7 @@ from scorer.skill_matching import find_skill_mentions
 
 
 class ResumeParseError(ValueError):
-    """Raised when a resume file cannot be read as machine-readable text."""
+    pass
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,30 @@ class ParsedResume:
     text: str
     professional_text: str
     skills: list[str]
+    experience: str = ""
+    education: str = ""
+    title: str = ""
+
+    def to_anonymized_dict(self) -> dict[str, object]:
+        """Export only scoring fields; never export name, original path, or raw text."""
+        return {"title": self.title, "experience": self.experience,
+                "education": self.education, "skills": self.skills,
+                "anonymized_text": self.professional_text}
+
+
+EMAIL_URL = re.compile(r"(?:\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|https?://\S+|www\.\S+)", re.I)
+PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
+PII_LINE = re.compile(r"\b(?:родил(?:ся|ась)|дата рождения|возраст|семейное положение|адрес|город проживания|место жительства|гражданство|контакты|телефон|почта|e-mail)\b", re.I)
+PERSONAL_SECTION = re.compile(r"^(?:personal details|personal information|personal data|contact details|contact information|additional information|other information|references?|referees?|recommendations?|about me|profile|languages?|certifications?|projects?|interests?|hobbies|publications?|awards?|courses?|Личные данные|персональные данные|контактная информация|Дополнительная информация)\s*:?\s*$", re.I)
+PERSONAL_FIELD = re.compile(r"^\s*(?:full name|name|email|e-mail|phone|mobile|address|city|location|date of birth|marital status|nationality)\s*[:：—–-]", re.I)
+SECTION = re.compile(r"^(опыт работы|профессиональный опыт|professional experience|work experience|опыт|experience|employment history|ключевые навыки|профессиональные навыки|навыки|skills|образование|education|обязанности|требования|условия|о себе|обо мне|личная информация|дополнительная информация|контакты|желаемая должность)\b\s*(?:(?:[:：—–-]\s*)?(.+))?$", re.I)
+SECTION_ALIASES = {
+    "title": {"желаемая должность"},
+    "experience": {"опыт работы", "профессиональный опыт", "professional experience", "work experience", "опыт", "experience", "employment history", "обязанности"},
+    "skills": {"ключевые навыки", "профессиональные навыки", "навыки", "skills"},
+    "education": {"образование", "education"},
+}
+PERSON_NAME = re.compile(r"^(?:[А-ЯЁ][а-яё-]+|[A-Z][a-z-]+)(?:\s+(?:[А-ЯЁ][а-яё-]+|[A-Z][a-z-]+)){1,3}$")
 
 
 def _decode_txt(raw: bytes) -> str:
@@ -36,13 +60,6 @@ def _decode_txt(raw: bytes) -> str:
 def _read_pdf(raw: bytes) -> str:
     try:
         from pypdf import PdfReader
-    except ImportError as exc:
-        raise ResumeParseError(
-            "Для чтения PDF установите зависимости командой: "
-            "python -m pip install -r requirements.txt"
-        ) from exc
-
-    try:
         reader = PdfReader(BytesIO(raw), strict=False)
         if reader.is_encrypted:
             raise ResumeParseError("PDF защищён паролем и не может быть прочитан.")
@@ -50,111 +67,73 @@ def _read_pdf(raw: bytes) -> str:
     except ResumeParseError:
         raise
     except Exception as exc:
-        raise ResumeParseError(f"Не удалось прочитать PDF: {exc}") from exc
+        raise ResumeParseError("Не удалось прочитать PDF-файл.") from exc
 
 
-def _clean_text(text: str) -> str:
+def _clean_line(line: str) -> str:
+    line = EMAIL_URL.sub(" ", line)
+    line = PHONE.sub(" ", line)
+    line = re.sub(r"\b\S+\.(?:ru|com|net|org|ua)\b", " ", line, flags=re.I)
+    return " ".join(line.split()).strip(" ,;|—–-:")
+
+
+def _sections(text: str) -> dict[str, list[str]]:
+    result = {"title": [], "experience": [], "skills": [], "education": []}
+    active = ""
     lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.replace("\x00", "").splitlines()]
-    return "\n".join(line for line in lines if line)
-
-
-def _extract_name(text: str) -> str | None:
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    name_label = re.compile(r"^(?:фио|имя кандидата|кандидат)\s*[:\-]\s*(.+)$", re.I)
-    for line in lines[:30]:
-        match = name_label.match(line)
-        if match:
-            return match.group(1).strip()
-
-    if not lines:
-        return None
-
-    first_line = lines[0]
-    if first_line.casefold().startswith("резюме"):
-        likely_name = re.compile(
-            r"^(?:[А-ЯЁ][а-яё-]+|[A-Z][a-z-]+)"
-            r"(?:\s+(?:[А-ЯЁ][а-яё-]+|[A-Z][a-z-]+)){1,3}$"
-        )
-        for line in lines[1:20]:
-            if likely_name.fullmatch(line):
-                return line
-    if len(first_line) > 80 or ":" in first_line or any(char.isdigit() for char in first_line):
-        return None
-    if first_line.casefold().startswith(("резюме", "опыт работы", "ключевые навыки", "образование")):
-        return None
-    return first_line
-
-
-def _extract_professional_text(text: str) -> str:
-    """Keep experience and skill sections, excluding personal/header sections."""
-    relevant_sections = (
-        re.compile(r"^опыт работы(?:\b|\s|[-—])", re.I),
-        re.compile(r"^(?:ключевые|профессиональные)?\s*навыки\b", re.I),
-    )
-    stop_sections = re.compile(
-        r"^(?:желаемая должность|образование|обо мне|дополнительная информация|"
-        r"контакты?|личная информация|гражданство|рекомендации|языки|"
-        r"курсы|сертификаты|командировки|переезд)\b",
-        re.I,
-    )
-    email_or_url = re.compile(r"(?:\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|https?://\S+|www\.\S+)", re.I)
-    phone = re.compile(r"(?<!\w)\+?\d[\d\s().-]{7,}\d(?!\w)")
-
-    in_relevant_section = False
-    selected: list[str] = []
-    for line in text.splitlines():
-        cleaned = line.strip()
-        if not cleaned:
+    for raw in lines:
+        line = raw.strip()
+        if not line:
             continue
-        if any(pattern.match(cleaned) for pattern in relevant_sections):
-            in_relevant_section = True
+        heading = SECTION.match(line)
+        if heading:
+            label = heading.group(1).casefold()
+            active = next((key for key, aliases in SECTION_ALIASES.items() if label in aliases), "")
+            remainder = (heading.group(2) or "").strip()
+            if active and remainder:
+                safe = _clean_line(remainder)
+                if safe and not PII_LINE.search(remainder):
+                    result[active].append(safe)
             continue
-        if stop_sections.match(cleaned):
-            in_relevant_section = False
+        # Stop at known personal and non-scoring section headings so they never
+        # inherit the previous work section.
+        if PERSONAL_SECTION.fullmatch(line) or PERSONAL_FIELD.match(line) or PII_LINE.search(line):
+            active = ""
             continue
-        if not in_relevant_section:
+        if not active:
             continue
-        cleaned = email_or_url.sub(" ", cleaned)
-        cleaned = phone.sub(" ", cleaned)
-        selected.append(cleaned)
-    return " ".join(" ".join(selected).split())
+        safe = _clean_line(line)
+        if safe and not PERSON_NAME.fullmatch(safe) and not re.fullmatch(r"\d{1,4}", safe):
+            result[active].append(safe)
+    return result
 
 
-def parse_resume_bytes(
-    file_name: str, content: bytes, skill_catalog: list[str] | None = None
-) -> ParsedResume:
-    """Parse an uploaded text-based HH PDF/TXT export from memory.
-
-    OCR is intentionally unsupported. ``skill_catalog`` should usually be the
-    required skills for the vacancy being scored.
-    """
+def parse_resume_bytes(file_name: str, content: bytes, skill_catalog: list[str] | None = None) -> ParsedResume:
     suffix = Path(file_name).suffix.casefold()
     if suffix == ".txt":
-        extracted_text = _decode_txt(content)
+        raw_text = _decode_txt(content)
     elif suffix == ".pdf":
-        extracted_text = _read_pdf(content)
+        raw_text = _read_pdf(content)
     else:
-        raise ResumeParseError("Поддерживаются только файлы PDF и TXT.")
+        raise ResumeParseError("Поддерживаются только PDF и TXT.")
+    if not raw_text.strip():
+        raise ResumeParseError("В документе нет текстового слоя; сканированные PDF без OCR не поддерживаются.")
 
-    text = _clean_text(extracted_text)
-    if not text:
-        raise ResumeParseError(
-            "В файле не найден текст. Возможно, PDF является сканом; OCR не поддерживается."
-        )
-
-    catalog = skill_catalog or []
-    return ParsedResume(
-        file_name=Path(file_name).name,
-        name=_extract_name(text),
-        text=text,
-        professional_text=_extract_professional_text(text),
-        skills=find_skill_mentions(text, catalog),
-    )
+    extracted = _sections(raw_text)
+    experience = " ".join(extracted["experience"])
+    education = " ".join(extracted["education"])
+    skills_text = " ".join(extracted["skills"])
+    title = " ".join(extracted["title"])
+    professional = " ".join(part for part in (title, experience, skills_text, education) if part)
+    skills = find_skill_mentions(professional, skill_catalog or [])
+    # Raw input is intentionally not returned: it may contain personal data.
+    sanitized = " ".join(_clean_line(line) for line in professional.splitlines() if _clean_line(line))
+    return ParsedResume(Path(file_name).name, None, sanitized, professional, skills,
+                        experience, education, title)
 
 
 def parse_resume(path: str | Path, skill_catalog: list[str] | None = None) -> ParsedResume:
-    """Read a local PDF/TXT export and find supplied skill names."""
     source = Path(path)
     if not source.is_file():
-        raise ResumeParseError(f"Файл резюме не найден: {source}")
+        raise ResumeParseError("Файл резюме не найден.")
     return parse_resume_bytes(source.name, source.read_bytes(), skill_catalog)
