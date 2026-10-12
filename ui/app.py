@@ -1,197 +1,105 @@
-"""Streamlit UI for ranking uploaded resumes through the REST API."""
+"""Streamlit interface for scoring the locally preloaded anonymized corpus."""
 
 import json
 import os
 import re
-from pathlib import Path
 
 import requests
 import streamlit as st
 
-from scorer.defaults import (
-    DEFAULT_REQUIRED_SKILLS,
-    DEFAULT_VACANCY_DESCRIPTION,
-    DEFAULT_VACANCY_TITLE,
-    DEMO_ARCHIVE_NAME,
-)
-
 
 API_URL = os.getenv("SCORING_API_URL", "http://127.0.0.1:8000").rstrip("/")
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEMO_ARCHIVE_PATH = PROJECT_ROOT / "data" / DEMO_ARCHIVE_NAME
 
 
 def parse_skill_input(value: str) -> list[str]:
     return [item.strip() for item in re.split(r"[,;\n]+", value) if item.strip()]
 
 
-def load_vacancies() -> list[dict]:
+def get_json(path: str):
     try:
-        response = requests.get(f"{API_URL}/vacancies", timeout=5)
+        response = requests.get(f"{API_URL}{path}", timeout=10)
         response.raise_for_status()
-        vacancies = response.json()
+        return response.json()
     except requests.RequestException as exc:
-        st.error(
-            "REST API недоступен. Запустите Neo4j и API по инструкции README.md. "
-            f"Подробности: {exc}"
-        )
+        st.error(f"API недоступен: {exc}. Запустите run_project.py в PyCharm.")
         st.stop()
-
-    if not isinstance(vacancies, list):
-        st.error("API вернул список вакансий в неверном формате.")
-        st.stop()
-    return vacancies
 
 
 def main() -> None:
     st.set_page_config(page_title="Скоринг резюме", page_icon="📄", layout="wide")
     st.title("AI-система для скоринга кандидатов")
-    st.caption(
-        "MVP оценивает покрытие обязательных навыков. "
-        "Оценка не заменяет решение рекрутера."
-    )
+    st.caption("Оценка покрытия навыков и текстовое сходство — разные метрики. Решение о найме принимает человек.")
 
-    try:
-        demo_archive = DEMO_ARCHIVE_PATH.read_bytes()
-    except OSError as exc:
-        st.error(f"Не удалось открыть встроенный набор {DEMO_ARCHIVE_PATH}: {exc}")
-        st.stop()
-    st.info("Встроенный обезличенный пакет Work.ua: 70 резюме. Он загрузится автоматически при расчёте.")
+    health = get_json("/health")
+    stats = get_json("/resumes")
+    vacancies = get_json("/vacancies")
+    st.info(f"MongoDB подключена. В локальную базу импортировано резюме: {stats['count']}; вакансий: {len(vacancies)}.")
+    if not vacancies:
+        st.warning("Вакансии не найдены. Проверьте data/vacancies.zip и перезапустите run_project.py.")
 
-    vacancies = load_vacancies()
-    if vacancies:
-        vacancy_mode = st.radio(
-            "Как задать вакансию?",
-            ["Выбрать из списка", "Ввести вручную"],
-            index=1,
-            horizontal=True,
-        )
-    else:
-        st.info("В базе пока нет вакансий. Введите вакансию вручную.")
-        vacancy_mode = "Ввести вручную"
-
-    with st.form("resume_scoring_form"):
-        if vacancy_mode == "Выбрать из списка":
-            selected_vacancy = st.selectbox(
-                "Вакансия",
-                vacancies,
-                format_func=lambda vacancy: (
-                    f"{vacancy.get('title', 'Без названия')} "
-                    f"({vacancy.get('id', 'без ID')})"
-                ),
-            )
-            vacancy_id = selected_vacancy.get("id", "")
-            vacancy_title = selected_vacancy.get("title", "Без названия")
-            vacancy_description = selected_vacancy.get("description") or ""
-            required_skills = selected_vacancy.get("required_skills", [])
+    mode = st.radio("Вакансия", ["Выбрать из базы", "Ввести вручную"], horizontal=True,
+                    disabled=not vacancies)
+    with st.form("scoring_form"):
+        if mode == "Выбрать из базы" and vacancies:
+            selected = st.selectbox("Выберите вакансию", vacancies,
+                                    format_func=lambda v: f"{v.get('title', 'Вакансия')} · навыков: {len(v.get('required_skills', []))}")
+            vacancy_id = selected["id"]
+            title = selected["title"]
+            description = selected.get("description", "")
+            default_skills = selected.get("required_skills", [])
+            skills_text = st.text_area("Обязательные навыки (можно поправить)", value=", ".join(default_skills))
+            description = st.text_area("Текст вакансии для TF-IDF", value=description, height=150)
         else:
             vacancy_id = ""
-            vacancy_title = st.text_input("Название вакансии", value=DEFAULT_VACANCY_TITLE)
-            vacancy_description = st.text_area(
-                "Описание вакансии (необязательно)",
-                value=DEFAULT_VACANCY_DESCRIPTION,
-                help="Без описания рассчитывается Score по навыкам; TF-IDF сходство будет пустым.",
-                placeholder="Можно не заполнять для пакетной проверки.",
-            )
-            manual_skills = st.text_area(
-                "Обязательные навыки",
-                value=", ".join(DEFAULT_REQUIRED_SKILLS),
-                help="Разделяйте навыки запятыми, точками с запятой или переносами строк.",
-            )
-            required_skills = parse_skill_input(manual_skills)
+            title = st.text_input("Название вакансии")
+            skills_text = st.text_area("Обязательные навыки", help="Разделяйте навыки запятыми, точками с запятой или переносами строк.")
+            description = st.text_area("Описание вакансии для TF-IDF")
 
-        additional_files = st.file_uploader(
-            "Дополнительные резюме (необязательно)",
-            type=["pdf", "txt", "zip"],
-            accept_multiple_files=True,
-            help=(
-                "Встроенный пакет из 70 резюме будет обработан в любом случае. Можно добавить до 30 PDF/TXT/ZIP. "
-                "Лимит — 100 резюме, 20 МБ на файл и 200 МБ суммарно. "
-                "Сканированные PDF без OCR не обрабатываются."
-            ),
-        )
+        uploaded = st.file_uploader("Дополнительные резюме PDF/TXT/ZIP (необязательно)",
+                                    type=["pdf", "txt", "zip"], accept_multiple_files=True,
+                                    help="Без выбора файла будут обработаны все резюме из MongoDB.")
         submitted = st.form_submit_button("Рассчитать рейтинг", type="primary")
 
     if not submitted:
         return
-    if vacancy_mode == "Ввести вручную" and not vacancy_title.strip():
-        st.warning("Введите название вакансии.")
+    required = parse_skill_input(skills_text)
+    if not title.strip() or not required:
+        st.warning("Укажите название вакансии и хотя бы один обязательный навык.")
         return
-    if not required_skills:
-        st.warning("Укажите хотя бы один обязательный навык.")
-        return
-    files = [("files", (DEMO_ARCHIVE_NAME, demo_archive, "application/zip"))]
-    files.extend(
-        ("files", (file.name, file.getvalue(), file.type or "application/octet-stream"))
-        for file in additional_files or []
-    )
+
+    files = [("files", (item.name, item.getvalue(), item.type or "application/octet-stream"))
+             for item in (uploaded or [])]
     try:
-        response = requests.post(
-            f"{API_URL}/score",
-            data={
-                "vacancy_id": vacancy_id,
-                "vacancy_title": vacancy_title,
-                "vacancy_description": vacancy_description,
-                "required_skills": json.dumps(required_skills, ensure_ascii=False),
-            },
-            files=files,
-            timeout=120,
-        )
+        response = requests.post(f"{API_URL}/score", data={
+            "vacancy_id": vacancy_id, "vacancy_title": title,
+            "vacancy_description": description,
+            "required_skills": json.dumps(required, ensure_ascii=False),
+        }, files=files, timeout=300)
         response.raise_for_status()
         payload = response.json()
     except requests.RequestException as exc:
-        detail = ""
-        if exc.response is not None:
-            try:
-                detail = exc.response.json().get("detail", "")
-            except (ValueError, AttributeError):
-                detail = exc.response.text
+        try:
+            detail = exc.response.json().get("detail", "") if exc.response is not None else ""
+        except (ValueError, AttributeError):
+            detail = ""
         st.error(f"Не удалось рассчитать рейтинг: {detail or exc}")
         return
 
     st.subheader(f"Результаты: {payload['vacancy_title']}")
-    results = [
-        {
-            "№": item.get("file_number", index),
-            "Кандидат": item["candidate"],
-            "Формат": item["file_type"].upper() or "—",
-            "Score, %": item["score"],
-            "TF-IDF сходство, %": item.get("text_similarity"),
-            "Найденные навыки": ", ".join(item["matched_skills"]) or "нет",
-            "Не найдены": ", ".join(item["missing_skills"]) or "нет",
-        }
-        for index, item in enumerate(payload["results"], start=1)
-    ]
-    if results:
-        st.dataframe(
-            results,
-            hide_index=True,
-            column_config={
-                "Score, %": st.column_config.NumberColumn("Score, %", format="%.1f"),
-                "TF-IDF сходство, %": st.column_config.NumberColumn(
-                    "TF-IDF сходство, %",
-                    format="%.1f",
-                    help="Дополнительная метрика. Она не меняет Score по обязательным навыкам.",
-                ),
-            },
-        )
+    st.caption(f"В сравнении участвует резюме: {payload['resume_count']}. Повторно загруженные файлы сохраняются в MongoDB обезличенными.")
+    table = [{"№": row["file_number"], "Кандидат": row["candidate"], "Формат": row["file_type"].upper(),
+              "Покрытие навыков, %": row["score"], "TF-IDF сходство, %": row["text_similarity"],
+              "Совпало": ", ".join(row["matched_skills"]) or "—",
+              "Не найдено": ", ".join(row["missing_skills"]) or "—"} for row in payload["results"]]
+    if table:
+        st.dataframe(table, hide_index=True, use_container_width=True)
     else:
-        st.info("Не удалось обработать ни одного резюме.")
-
+        st.info("В базе нет резюме для сравнения.")
     if payload["errors"]:
-        with st.expander(f"Не обработаны файлы: {len(payload['errors'])}"):
-            for index, error in enumerate(payload["errors"], start=1):
-                file_type = error.get("file_type", "")
-                label = f"Резюме {error.get('file_number', index)}"
-                if file_type:
-                    label += f" ({file_type.upper()})"
-                st.warning(f"{label}: {error['error']}")
-
-    st.caption(
-        "Score — доля найденных обязательных навыков. "
-        "TF-IDF сходство показывается отдельно и не меняет рейтинг. "
-        "Ни одна из метрик не оценивает кандидата целиком."
-    )
+        with st.expander(f"Пропущенные файлы: {len(payload['errors'])}"):
+            for error in payload["errors"]:
+                st.warning(f"{error.get('file_type', 'файл')}: {error['error']}")
+    st.caption("Покрытие навыков = найденные обязательные навыки / все обязательные навыки. TF-IDF — независимое косинусное сходство по корпусу.")
 
 
 if __name__ == "__main__":
