@@ -1,14 +1,12 @@
 services:
-  neo4j:
-    image: neo4j:5.26-community
-    container_name: candidate-scoring-neo4j
+  mongo:
+    image: mongo:8.0
+    container_name: candidate-scoring-mongo
+    restart: unless-stopped
     ports:
-      - "7474:7474"
-      - "7687:7687"
-    environment:
-      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}"
+      - "127.0.0.1:27017:27017"
     volumes:
-      - neo4j_data:/data
+      - mongo_data:/data/db
 
 volumes:
-  neo4j_data:
+  mongo_data:

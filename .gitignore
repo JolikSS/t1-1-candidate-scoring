@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local user-provided resume datasets and anonymized extraction outputs
+/data/vacancies.zip
+/data/resumes.zip
+/data/parsed_json/

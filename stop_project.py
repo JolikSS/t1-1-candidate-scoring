@@ -1,103 +1,78 @@
-"""Stop this project's launcher, API, UI, and Neo4j container from PyCharm."""
+"""Stop this checkout's launcher, FastAPI, Streamlit and MongoDB container."""
 
 from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
+DOCKER_CANDIDATES = [Path(r"A:\DockerDesktop\App\resources\bin\docker.exe"), Path(r"C:\Program Files\Docker\Docker\resources\bin\docker.exe")]
+DOCKER_CONFIG_DIR = Path(r"A:\CandidateScoringData\docker-config")
+MONGO_DBPATH = Path(r"A:\CandidateScoringData\mongo-data-native")
 
 
-def stop_python_services() -> bool:
+def stop_processes() -> None:
     if os.name != "nt":
-        print("Этот остановщик настроен для Windows.")
-        return False
-
-    runner_path = str(ROOT / "run_project.py").replace("'", "''")
-    command = rf"""
-$runnerPath = '{runner_path}'
-$targets = Get-CimInstance Win32_Process | Where-Object {{
-    $line = $_.CommandLine
-    $line -and (
-        $line.IndexOf($runnerPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-        $line -match '(?i)-m\s+uvicorn\s+api\.main:app.*--port\s+8000' -or
-        $line -match '(?i)-m\s+streamlit\s+run\s+ui/app\.py.*--server\.port\s+8501'
-    )
+        return
+    root = str(ROOT).replace("'", "''")
+    script = rf"""
+$root = '{root}'
+$items = Get-CimInstance Win32_Process | Where-Object {{
+  $line = $_.CommandLine
+  $line -and (
+    ($line.Contains($root) -and $line -match 'run_project\.py') -or
+    $line -match '(?i)-m\s+uvicorn\s+api\.main:app.*--port\s+8000' -or
+    $line -match '(?i)-m\s+streamlit\s+run\s+ui/app\.py.*--server\.port\s+8501')
 }}
-$count = @($targets).Count
-foreach ($target in $targets) {{
-    & "$env:SystemRoot\System32\taskkill.exe" /PID $target.ProcessId /T /F *> $null
-}}
+$count = @($items).Count
+foreach ($item in $items) {{ & taskkill.exe /PID $item.ProcessId /T /F *> $null }}
 Write-Output $count
 """
-    result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print("Не удалось проверить процессы приложения:")
-        print(result.stderr.strip() or result.stdout.strip())
-        return False
-
-    try:
-        count = int(result.stdout.strip().splitlines()[-1])
-    except (IndexError, ValueError):
-        count = 0
-    print(f"Завершены процессы лаунчера/API/UI: {count}.")
-    return True
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+                           cwd=ROOT, text=True, capture_output=True)
+    print(f"Остановлены процессы лаунчера/API/UI: {result.stdout.strip() or '0'}.")
 
 
-def stop_database() -> bool:
-    docker = "docker.exe" if os.name == "nt" else "docker"
-    if not any(
-        Path(folder, docker).is_file()
-        for folder in os.environ.get("PATH", "").split(os.pathsep)
-        if folder
-    ):
-        print("Docker не найден; контейнер Neo4j не остановлен.")
-        return False
-
-    result = subprocess.run(
-        [docker, "compose", "stop", "neo4j"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode == 0:
-        print("Контейнер Neo4j остановлен. Данные базы сохранены.")
-        return True
-
-    # Fallback for a container started outside Compose or from another directory.
-    fallback = subprocess.run(
-        [docker, "stop", "candidate-scoring-neo4j"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if fallback.returncode == 0:
-        print("Контейнер Neo4j остановлен. Данные базы сохранены.")
-        return True
-    print("Neo4j уже остановлен либо Docker Desktop недоступен.")
-    return True
+def docker_cli() -> str:
+    from shutil import which
+    return which("docker") or next((str(path) for path in DOCKER_CANDIDATES if path.is_file()), "")
 
 
 def main() -> int:
-    print("Останавливаю службы проекта...", flush=True)
-    processes_ok = stop_python_services()
-    database_ok = stop_database()
-    if processes_ok and database_ok:
-        print("Проект полностью остановлен.")
-        return 0
-    print("Остановка завершилась не полностью. Проверь сообщения выше.")
-    return 1
+    stop_processes()
+    docker = docker_cli()
+    if docker:
+        environment = os.environ.copy()
+        if (DOCKER_CONFIG_DIR / "config.json").is_file():
+            environment["DOCKER_CONFIG"] = str(DOCKER_CONFIG_DIR)
+        try:
+            result = subprocess.run([docker, "compose", "stop", "mongo"], cwd=ROOT, env=environment,
+                                    text=True, capture_output=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            result = None
+        if result is not None and result.returncode == 0:
+            print("MongoDB остановлена; данные сохранены в Docker volume mongo_data.")
+        else:
+            print("MongoDB уже остановлена или Docker Desktop недоступен.")
+    else:
+        print("Docker CLI недоступен; остановите MongoDB через Docker Desktop при необходимости.")
+    if os.name == "nt":
+        dbpath = str(MONGO_DBPATH).replace("'", "''")
+        script = rf"""
+$dbpath = '{dbpath}'
+$items = Get-CimInstance Win32_Process | Where-Object {{
+  $_.Name -eq 'mongod.exe' -and $_.CommandLine -and $_.CommandLine.Contains($dbpath)
+}}
+$count = @($items).Count
+foreach ($item in $items) {{ & taskkill.exe /PID $item.ProcessId /T /F *> $null }}
+Write-Output $count
+"""
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+                                cwd=ROOT, text=True, capture_output=True)
+        if result.stdout.strip() not in ("", "0"):
+            print(f"Локальная MongoDB остановлена; данные сохранены в {MONGO_DBPATH}.")
+    return 0
 
 
 if __name__ == "__main__":
