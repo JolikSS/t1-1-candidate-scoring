@@ -1,95 +1,96 @@
-"""REST API for resume scoring and Neo4j persistence."""
+"""FastAPI endpoints for anonymized MongoDB-backed candidate scoring."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import uuid
-import zlib
 import zipfile
+import zlib
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydantic import BaseModel, Field
+from pymongo.errors import PyMongoError
 
-from db.graph_store import GraphStore
+from db.mongo_store import MongoStore
+from api.workspace import router as workspace_router, start_worker, stop_worker
+from db.data_paths import data_root
 from Parser.resume_parser import ResumeParseError, parse_resume_bytes
+from Parser.vacancy_parser import SKILL_CATALOG
 from scorer.benchmark import analyze_skills
 from scorer.skill_matching import canonical_skill_key
-from scorer.text_similarity import calculate_text_similarity
-
+from scorer.text_similarity import calculate_corpus_similarities
 
 LOGGER = logging.getLogger(__name__)
-graph_store: GraphStore | None = None
-MAX_BATCH_RESUMES = 100
+store: MongoStore | None = None
+MAX_BATCH_RESUMES = 500
 MAX_RESUME_BYTES = 20 * 1024 * 1024
-MAX_BATCH_BYTES = 200 * 1024 * 1024
+MAX_BATCH_BYTES = 512 * 1024 * 1024
 
 
 class VacancyInput(BaseModel):
-    id: Optional[str] = None
+    id: str | None = None
     title: str = Field(min_length=1, max_length=200)
-    required_skills: list[str] = Field(min_length=1)
-    description: Optional[str] = Field(default=None, max_length=20000)
+    required_skills: list[str] = Field(default_factory=list)
+    description: str | None = Field(default=None, max_length=20000)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    global graph_store
-    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    username = os.getenv("NEO4J_USERNAME", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD")
-    if not password:
-        LOGGER.warning("NEO4J_PASSWORD не задан; API запустится без подключения к БД.")
-    else:
-        try:
-            graph_store = GraphStore(uri, username, password)
-            graph_store.verify_and_prepare()
-        except (Neo4jError, ServiceUnavailable, OSError) as exc:
-            LOGGER.exception("Не удалось подключиться к Neo4j: %s", exc)
-            if graph_store is not None:
-                graph_store.close()
-            graph_store = None
+    global store
+    try:
+        store = MongoStore()
+        store.verify_and_prepare()
+        start_worker(store)
+        LOGGER.info("MongoDB подключена")
+    except (PyMongoError, OSError) as exc:
+        LOGGER.exception("Не удалось подключиться к MongoDB: %s", exc)
+        if store:
+            store.close()
+        store = None
     try:
         yield
     finally:
-        if graph_store is not None:
-            graph_store.close()
-            graph_store = None
+        stop_worker()
+        if store:
+            store.close()
+            store = None
 
 
-app = FastAPI(
-    title="Candidate Scoring API",
-    version="1.0.0",
-    description="API для анализа резюме и хранения результатов в Neo4j.",
-    lifespan=lifespan,
-)
+app = FastAPI(title="Candidate Scoring API", version="2.0.0",
+              description="Обезличенный скоринг резюме, MongoDB и корпусный TF-IDF.", lifespan=lifespan)
 
 
-def require_store() -> GraphStore:
-    if graph_store is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Neo4j недоступен. Проверьте NEO4J_URI, NEO4J_USERNAME и NEO4J_PASSWORD.",
-        )
-    return graph_store
+app.include_router(workspace_router)
 
 
-def _database_error(exc: Exception) -> HTTPException:
-    LOGGER.exception("Ошибка обращения к Neo4j: %s", exc)
-    return HTTPException(status_code=503, detail="Не удалось выполнить запрос к Neo4j.")
+def _write_anonymized_exports(db: MongoStore) -> None:
+    export_dir = data_root() / "parsed_json"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    allowed_resume_fields = ("resume_id", "title", "experience", "education", "skills", "anonymized_text")
+    resumes = [{key: doc.get(key) for key in allowed_resume_fields} for doc in db.list_resumes()]
+    vacancies = [{key: doc.get(key) for key in ("id", "title", "required_skills", "description", "requirements", "responsibilities")}
+                 for doc in db.list_vacancies()]
+    (export_dir / "resumes.json").write_text(json.dumps(resumes, ensure_ascii=False, indent=2), encoding="utf-8")
+    (export_dir / "vacancies.json").write_text(json.dumps(vacancies, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def require_store() -> MongoStore:
+    if store is None:
+        raise HTTPException(status_code=503, detail="MongoDB недоступна. Запустите Docker Desktop и повторите запуск.")
+    return store
 
 
 def _normalize_skills(skills: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for skill in skills:
-        cleaned = " ".join(skill.split())
+    result, seen = [], set()
+    for item in skills:
+        cleaned = " ".join(item.split())
         key = canonical_skill_key(cleaned)
         if cleaned and key not in seen:
             result.append(cleaned)
@@ -97,181 +98,96 @@ def _normalize_skills(skills: list[str]) -> list[str]:
     return result
 
 
-def _prepare_resume_files(files: list[UploadFile]) -> tuple[list[tuple[int, str, bytes]], list[dict[str, str]]]:
-    """Flatten individual resumes and ZIP members without extracting to disk."""
-    prepared: list[tuple[int, str, bytes]] = []
+def _unpack(files: list[UploadFile]) -> tuple[list[tuple[str, bytes]], list[dict[str, str]]]:
+    items: list[tuple[str, bytes]] = []
     errors: list[dict[str, str]] = []
-    file_number = 0
     total_bytes = 0
-
-    def add_resume(file_type: str, content: bytes) -> None:
-        nonlocal file_number, total_bytes
-        file_number += 1
-        if file_number > MAX_BATCH_RESUMES:
-            raise HTTPException(
-                status_code=413,
-                detail=f"За один запуск можно обработать не более {MAX_BATCH_RESUMES} резюме.",
-            )
+    def add(kind: str, content: bytes) -> None:
+        nonlocal total_bytes
+        if len(items) >= MAX_BATCH_RESUMES:
+            raise HTTPException(status_code=413, detail=f"Лимит пакета — {MAX_BATCH_RESUMES} резюме.")
         if len(content) > MAX_RESUME_BYTES:
-            errors.append(
-                {
-                    "file_number": str(file_number),
-                    "file_type": file_type,
-                    "error": "Размер одного резюме превышает 20 МБ.",
-                }
-            )
+            errors.append({"file_type": kind, "error": "Файл превышает 20 МБ."})
             return
         total_bytes += len(content)
         if total_bytes > MAX_BATCH_BYTES:
-            raise HTTPException(
-                status_code=413,
-                detail="Общий размер резюме в загрузке превышает 200 МБ.",
-            )
-        prepared.append((file_number, file_type, content))
+            raise HTTPException(status_code=413, detail="Общий размер загрузки превышает 512 МБ.")
+        items.append((kind, content))
 
     for uploaded in files:
         suffix = Path(uploaded.filename or "").suffix.casefold()
-        file_type = suffix.lstrip(".")
-        if suffix != ".zip":
-            content = uploaded.file.read(MAX_RESUME_BYTES + 1)
-            if suffix not in {".pdf", ".txt"}:
-                file_number += 1
-                errors.append(
-                    {
-                        "file_number": str(file_number),
-                        "file_type": file_type or "неизвестный",
-                        "error": "Поддерживаются только PDF, TXT и ZIP.",
-                    }
-                )
-            else:
-                add_resume(file_type, content)
-            continue
-
-        archive_content = uploaded.file.read(MAX_BATCH_BYTES + 1)
-        if len(archive_content) > MAX_BATCH_BYTES:
-            raise HTTPException(status_code=413, detail="Размер ZIP-архива превышает 200 МБ.")
-        try:
-            archive = zipfile.ZipFile(BytesIO(archive_content))
-        except (zipfile.BadZipFile, OSError):
-            file_number += 1
-            errors.append(
-                {
-                    "file_number": str(file_number),
-                    "file_type": "zip",
-                    "error": "Не удалось открыть ZIP-архив.",
-                }
-            )
-            continue
-
-        with archive:
-            members = [item for item in archive.infolist() if not item.is_dir()]
-            if len(members) > MAX_BATCH_RESUMES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"В ZIP должно быть не более {MAX_BATCH_RESUMES} файлов.",
-                )
-            candidate_members = [
-                item
-                for item in members
-                if Path(item.filename.replace("\\", "/")).suffix.casefold() in {".pdf", ".txt"}
-            ]
-            if len(candidate_members) + len(prepared) > MAX_BATCH_RESUMES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"За один запуск можно обработать не более {MAX_BATCH_RESUMES} резюме.",
-                )
-
-            for item in members:
-                member_suffix = Path(item.filename.replace("\\", "/")).suffix.casefold()
-                member_type = member_suffix.lstrip(".") or "неизвестный"
-                if member_suffix not in {".pdf", ".txt"}:
-                    file_number += 1
-                    errors.append(
-                        {
-                            "file_number": str(file_number),
-                            "file_type": member_type,
-                            "error": "Файл пропущен: в ZIP поддерживаются только PDF и TXT.",
-                        }
-                    )
-                    continue
-                if item.flag_bits & 0x1:
-                    file_number += 1
-                    errors.append(
-                        {
-                            "file_number": str(file_number),
-                            "file_type": member_type,
-                            "error": "Зашифрованные файлы в ZIP не поддерживаются.",
-                        }
-                    )
-                    continue
-                if item.file_size > MAX_RESUME_BYTES:
-                    file_number += 1
-                    errors.append(
-                        {
-                            "file_number": str(file_number),
-                            "file_type": member_type,
-                            "error": "Размер одного резюме превышает 20 МБ.",
-                        }
-                    )
-                    continue
-                try:
-                    content = archive.read(item)
-                except (zipfile.BadZipFile, RuntimeError, OSError, EOFError, NotImplementedError, zlib.error):
-                    file_number += 1
-                    errors.append(
-                        {
-                            "file_number": str(file_number),
-                            "file_type": member_type,
-                            "error": "Не удалось прочитать файл из ZIP-архива.",
-                        }
-                    )
-                    continue
-                add_resume(member_type, content)
-
-    return prepared, errors
+        kind = suffix.lstrip(".") or "unknown"
+        if suffix in {".pdf", ".txt"}:
+            add(kind, uploaded.file.read(MAX_RESUME_BYTES + 1))
+        elif suffix == ".zip":
+            archive_bytes = uploaded.file.read(MAX_BATCH_BYTES + 1)
+            if len(archive_bytes) > MAX_BATCH_BYTES:
+                raise HTTPException(status_code=413, detail="ZIP превышает 512 МБ.")
+            try:
+                archive = zipfile.ZipFile(BytesIO(archive_bytes))
+            except (zipfile.BadZipFile, OSError):
+                errors.append({"file_type": "zip", "error": "Повреждённый ZIP-архив."})
+                continue
+            with archive:
+                members = [m for m in archive.infolist() if not m.is_dir()]
+                if len(items) + sum(Path(m.filename).suffix.casefold() in {".pdf", ".txt"} for m in members) > MAX_BATCH_RESUMES:
+                    raise HTTPException(status_code=413, detail=f"Лимит пакета — {MAX_BATCH_RESUMES} резюме.")
+                for member in members:
+                    member_suffix = Path(member.filename.replace("\\", "/")).suffix.casefold()
+                    if member_suffix not in {".pdf", ".txt"}:
+                        continue
+                    if member.flag_bits & 1 or member.file_size > MAX_RESUME_BYTES:
+                        errors.append({"file_type": member_suffix.lstrip("."), "error": "Зашифрованный или слишком большой файл пропущен."})
+                        continue
+                    try:
+                        add(member_suffix.lstrip("."), archive.read(member))
+                    except (OSError, zipfile.BadZipFile, RuntimeError, zlib.error):
+                        errors.append({"file_type": member_suffix.lstrip("."), "error": "Не удалось прочитать файл из ZIP."})
+        else:
+            errors.append({"file_type": kind, "error": "Поддерживаются PDF, TXT и ZIP."})
+    return items, errors
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    store = require_store()
     try:
-        store.driver.verify_connectivity()
-    except (Neo4jError, ServiceUnavailable, OSError) as exc:
-        raise _database_error(exc) from exc
-    return {"status": "ok", "database": "neo4j"}
+        require_store().client.admin.command("ping")
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="MongoDB недоступна.") from exc
+    return {"status": "ok", "database": "mongodb"}
 
 
 @app.get("/vacancies")
 def get_vacancies() -> list[dict[str, Any]]:
     try:
         return require_store().list_vacancies()
-    except HTTPException:
-        raise
-    except (Neo4jError, ServiceUnavailable, OSError) as exc:
-        raise _database_error(exc) from exc
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Ошибка MongoDB.") from exc
+
+
+@app.get("/resumes")
+def get_resumes() -> dict[str, Any]:
+    try:
+        items = require_store().list_resumes()
+        return {"count": len(items), "resumes": items}
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Ошибка MongoDB.") from exc
 
 
 @app.post("/vacancies", status_code=201)
 def create_vacancy(vacancy: VacancyInput) -> dict[str, Any]:
     title = vacancy.title.strip()
     skills = _normalize_skills(vacancy.required_skills)
-    description = (vacancy.description or "").strip()
     if not title:
-        raise HTTPException(status_code=422, detail="Название вакансии не может быть пустым.")
-    if not skills:
-        raise HTTPException(status_code=422, detail="Укажите хотя бы один навык.")
-    vacancy_id = vacancy.id or str(uuid.uuid4())
+        raise HTTPException(status_code=422, detail="Название вакансии пустое.")
     try:
-        return require_store().upsert_vacancy(
-            vacancy_id,
-            title,
-            skills,
-            description,
-        )
-    except HTTPException:
-        raise
-    except (Neo4jError, ServiceUnavailable, OSError) as exc:
-        raise _database_error(exc) from exc
+        db = require_store()
+        result = db.upsert_vacancy(vacancy.id or str(uuid.uuid4()), title, skills,
+                                   vacancy.description or "")
+        _write_anonymized_exports(db)
+        return result
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Ошибка MongoDB.") from exc
 
 
 @app.post("/score")
@@ -280,100 +196,77 @@ def score_resumes(
     vacancy_description: str = Form(default=""),
     required_skills: str = Form(...),
     vacancy_id: str = Form(default=""),
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File(default=[]),
 ) -> dict[str, Any]:
-    if not vacancy_title.strip():
-        raise HTTPException(status_code=422, detail="Название вакансии не может быть пустым.")
     try:
-        parsed_skills = json.loads(required_skills)
+        requested = json.loads(required_skills)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=422, detail="required_skills должен быть JSON-массивом.") from exc
-    if not isinstance(parsed_skills, list) or any(not isinstance(item, str) for item in parsed_skills):
+    if not isinstance(requested, list) or any(not isinstance(item, str) for item in requested):
         raise HTTPException(status_code=422, detail="required_skills должен содержать строки.")
-    skills = _normalize_skills(parsed_skills)
-    if not skills:
-        raise HTTPException(status_code=422, detail="Укажите хотя бы один обязательный навык.")
-    if not files:
-        raise HTTPException(status_code=422, detail="Загрузите хотя бы одно резюме.")
+    required = _normalize_skills(requested)
+    if not required:
+        raise HTTPException(status_code=422, detail="У вакансии должны быть обязательные навыки.")
 
-    resume_files, errors = _prepare_resume_files(files)
-    if not resume_files:
-        raise HTTPException(
-            status_code=422,
-            detail="В загрузке не найдено читаемых резюме PDF или TXT.",
-        )
-
-    store = require_store()
-    resolved_vacancy_id = vacancy_id.strip() or str(uuid.uuid4())
+    db = require_store()
+    resolved_id = vacancy_id.strip() or str(uuid.uuid4())
+    vacancy = {"id": resolved_id, "title": vacancy_title.strip(), "required_skills": required,
+               "description": vacancy_description.strip()}
     try:
-        vacancy_description = vacancy_description.strip()
-        store.upsert_vacancy(
-            resolved_vacancy_id,
-            vacancy_title.strip(),
-            skills,
-            vacancy_description,
-        )
-    except (Neo4jError, ServiceUnavailable, OSError) as exc:
-        raise _database_error(exc) from exc
+        db.upsert_vacancy(resolved_id, vacancy["title"], required, vacancy["description"])
+        _write_anonymized_exports(db)
+        uploaded, errors = _unpack(files)
+        catalog = list(dict.fromkeys([*SKILL_CATALOG, *required,
+                                      *(skill for v in db.list_vacancies() for skill in v.get("required_skills", []))]))
+        batch: list[dict[str, Any]] = []
+        for kind, content in uploaded:
+            try:
+                parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
+                if not parsed.professional_text.strip():
+                    errors.append({"file_number": str(len(errors) + 1), "file_type": kind,
+                                   "error": "Не найдены распознаваемые профессиональные разделы."})
+                    continue
+            except ResumeParseError as exc:
+                errors.append({"file_number": str(len(errors) + 1), "file_type": kind, "error": str(exc)})
+                continue
+            resume_id = str(uuid.uuid4())
+            safe_fields = parsed.to_anonymized_dict()
+            digest = hashlib.sha256(content).hexdigest()
+            doc = {"resume_id": resume_id, "content_hash": digest, "file_type": kind, **safe_fields}
+            db.save_resume(doc)
+            batch.append(doc)
+        if batch:
+            _write_anonymized_exports(db)
 
-    results: list[dict[str, Any]] = []
-    for file_number, file_type, content in resume_files:
-        # Use only the file type while parsing. Uploaded names can contain a
-        # candidate's full name or other identifying information.
-        safe_file_name = f"resume.{file_type}"
-        try:
-            parsed = parse_resume_bytes(safe_file_name, content, skills)
-            analysis = analyze_skills(parsed.skills, skills)
-            text_similarity = calculate_text_similarity(
-                parsed.professional_text, vacancy_description
-            )
-        except ResumeParseError as exc:
-            errors.append({"file_number": str(file_number), "file_type": file_type, "error": str(exc)})
-            continue
-
-        candidate_id = str(uuid.uuid4())
-        resume_id = str(uuid.uuid4())
-        try:
-            store.save_score(
-                candidate_id=candidate_id,
-                resume_id=resume_id,
-                file_type=file_type,
-                skills=parsed.skills,
-                vacancy_id=resolved_vacancy_id,
-                score=analysis["score"],
-                text_similarity=text_similarity,
-                matched_skills=analysis["matched_skills"],
-                missing_skills=analysis["missing_skills"],
-            )
-        except (Neo4jError, ServiceUnavailable, OSError) as exc:
-            raise _database_error(exc) from exc
-        results.append(
-            {
-                "candidate": f"Кандидат {candidate_id[-6:]}",
-                "file_number": file_number,
-                "file_type": file_type,
-                "score": analysis["score"],
-                "text_similarity": text_similarity,
-                "matched_skills": analysis["matched_skills"],
-                "missing_skills": analysis["missing_skills"],
-                "resume_id": resume_id,
-            }
-        )
-
-    results.sort(key=lambda item: (-item["score"], item["candidate"].casefold()))
-    return {
-        "vacancy_id": resolved_vacancy_id,
-        "vacancy_title": vacancy_title.strip(),
-        "results": results,
-        "errors": errors,
-    }
+        # An empty upload means score all preloaded resumes. Additional uploads
+        # extend the imported corpus and are included in the same batch.
+        # Existing archive records plus newly uploaded resumes are included;
+        # unique content hashes make repeat uploads idempotent.
+        candidates = [r for r in db.list_resumes() if not r.get("hidden", False)]
+        if not candidates:
+            raise HTTPException(status_code=422, detail="В MongoDB ещё нет резюме. Поместите ZIP в data и запустите импорт.")
+        idf_resumes = [item for item in candidates]
+        idf_vacancies = db.list_vacancies()
+        similarities = calculate_corpus_similarities(candidates, vacancy, idf_resumes, idf_vacancies)
+        results = []
+        for idx, (resume, similarity) in enumerate(zip(candidates, similarities), start=1):
+            analysis = analyze_skills(resume.get("skills", []), required)
+            results.append({"candidate": f"Кандидат {resume['resume_id'][-6:]}", "file_number": idx,
+                            "file_type": resume.get("file_type", "pdf"), "score": analysis["score"],
+                            "text_similarity": similarity, "matched_skills": analysis["matched_skills"],
+                            "missing_skills": analysis["missing_skills"], "resume_id": resume["resume_id"]})
+        results.sort(key=lambda item: (-item["score"], -(item["text_similarity"] or 0), item["candidate"]))
+        db.save_scoring_run(resolved_id, results)
+        return {"vacancy_id": resolved_id, "vacancy_title": vacancy["title"], "results": results,
+                "errors": errors, "resume_count": len(candidates)}
+    except PyMongoError as exc:
+        LOGGER.exception("MongoDB error")
+        raise HTTPException(status_code=503, detail="Ошибка записи или чтения MongoDB.") from exc
 
 
 @app.get("/vacancies/{vacancy_id}/results")
 def get_vacancy_results(vacancy_id: str) -> list[dict[str, Any]]:
     try:
         return require_store().list_results(vacancy_id)
-    except HTTPException:
-        raise
-    except (Neo4jError, ServiceUnavailable, OSError) as exc:
-        raise _database_error(exc) from exc
+    except PyMongoError as exc:
+        raise HTTPException(status_code=503, detail="Ошибка MongoDB.") from exc
