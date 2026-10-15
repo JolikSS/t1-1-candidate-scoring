@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
 from db.mongo_store import MongoStore
+from api.workspace import router as workspace_router, start_worker, stop_worker
 from db.data_paths import data_root
 from Parser.resume_parser import ResumeParseError, parse_resume_bytes
 from Parser.vacancy_parser import SKILL_CATALOG
@@ -46,6 +47,7 @@ async def lifespan(_: FastAPI):
     try:
         store = MongoStore()
         store.verify_and_prepare()
+        start_worker(store)
         LOGGER.info("MongoDB подключена")
     except (PyMongoError, OSError) as exc:
         LOGGER.exception("Не удалось подключиться к MongoDB: %s", exc)
@@ -55,6 +57,7 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
+        stop_worker()
         if store:
             store.close()
             store = None
@@ -62,6 +65,9 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Candidate Scoring API", version="2.0.0",
               description="Обезличенный скоринг резюме, MongoDB и корпусный TF-IDF.", lifespan=lifespan)
+
+
+app.include_router(workspace_router)
 
 
 def _write_anonymized_exports(db: MongoStore) -> None:
@@ -236,7 +242,7 @@ def score_resumes(
         # extend the imported corpus and are included in the same batch.
         # Existing archive records plus newly uploaded resumes are included;
         # unique content hashes make repeat uploads idempotent.
-        candidates = db.list_resumes()
+        candidates = [r for r in db.list_resumes() if not r.get("hidden", False)]
         if not candidates:
             raise HTTPException(status_code=422, detail="В MongoDB ещё нет резюме. Поместите ZIP в data и запустите импорт.")
         idf_resumes = [item for item in candidates]
