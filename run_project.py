@@ -24,7 +24,8 @@ MONGO_BACKEND = ""
 
 def runtime() -> str:
     python = str(PYTHON_PREFERRED) if PYTHON_PREFERRED.is_file() else sys.executable
-    check = "import fastapi,pymongo,pypdf,requests,sklearn,streamlit,uvicorn"
+    check = ("import fastapi,pymongo,pypdf,requests,sklearn,streamlit,uvicorn; "
+             "assert tuple(map(int, streamlit.__version__.split('.')[:2])) >= (1, 49)")
     if subprocess.run([python, "-c", check], cwd=ROOT, capture_output=True).returncode:
         print("Устанавливаю зависимости проекта...", flush=True)
         subprocess.run([python, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], cwd=ROOT, check=True)
