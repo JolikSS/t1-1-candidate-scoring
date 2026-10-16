@@ -8,7 +8,6 @@ import logging
 import os
 import uuid
 import zipfile
-import zlib
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
@@ -19,10 +18,9 @@ from pydantic import BaseModel, Field
 from pymongo.errors import PyMongoError
 
 from db.mongo_store import MongoStore
-from api.workspace import router as workspace_router, start_worker, stop_worker
 from db.data_paths import data_root
 from Parser.resume_parser import ResumeParseError, parse_resume_bytes
-from Parser.vacancy_parser import SKILL_CATALOG
+from Parser.vacancy_parser import SKILL_CATALOG, VacancyParseError, parse_vacancy_bytes
 from scorer.benchmark import analyze_skills
 from scorer.skill_matching import canonical_skill_key
 from scorer.text_similarity import calculate_corpus_similarities
@@ -47,7 +45,6 @@ async def lifespan(_: FastAPI):
     try:
         store = MongoStore()
         store.verify_and_prepare()
-        start_worker(store)
         LOGGER.info("MongoDB подключена")
     except (PyMongoError, OSError) as exc:
         LOGGER.exception("Не удалось подключиться к MongoDB: %s", exc)
@@ -57,7 +54,6 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
-        stop_worker()
         if store:
             store.close()
             store = None
@@ -65,9 +61,6 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Candidate Scoring API", version="2.0.0",
               description="Обезличенный скоринг резюме, MongoDB и корпусный TF-IDF.", lifespan=lifespan)
-
-
-app.include_router(workspace_router)
 
 
 def _write_anonymized_exports(db: MongoStore) -> None:
@@ -141,7 +134,7 @@ def _unpack(files: list[UploadFile]) -> tuple[list[tuple[str, bytes]], list[dict
                         continue
                     try:
                         add(member_suffix.lstrip("."), archive.read(member))
-                    except (OSError, zipfile.BadZipFile, RuntimeError, zlib.error):
+                    except (OSError, zipfile.BadZipFile, RuntimeError):
                         errors.append({"file_type": member_suffix.lstrip("."), "error": "Не удалось прочитать файл из ZIP."})
         else:
             errors.append({"file_type": kind, "error": "Поддерживаются PDF, TXT и ZIP."})
@@ -190,6 +183,22 @@ def create_vacancy(vacancy: VacancyInput) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Ошибка MongoDB.") from exc
 
 
+@app.post("/vacancies/upload")
+def upload_vacancies(files: list[UploadFile] = File(...)) -> dict[str, Any]:
+    documents, errors = _unpack(files)
+    vacancies = {}
+    for index, (kind, content) in enumerate(documents, 1):
+        try:
+            parsed = parse_vacancy_bytes(f"vacancy.{kind}", content)
+        except VacancyParseError as exc:
+            errors.append({"file_number": str(index), "file_type": kind, "error": str(exc)})
+            continue
+        vacancy_id = f"vac-{hashlib.sha256(content).hexdigest()[:20]}"
+        vacancies[vacancy_id] = {"id": vacancy_id, "title": parsed.title,
+                                  "required_skills": parsed.required_skills, "description": parsed.description}
+    return {"vacancies": list(vacancies.values()), "errors": errors}
+
+
 @app.post("/score")
 def score_resumes(
     vacancy_title: str = Form(..., min_length=1, max_length=200),
@@ -197,6 +206,7 @@ def score_resumes(
     required_skills: str = Form(...),
     vacancy_id: str = Form(default=""),
     files: list[UploadFile] = File(default=[]),
+    uploaded_only: bool = Form(default=False),
 ) -> dict[str, Any]:
     try:
         requested = json.loads(required_skills)
@@ -205,7 +215,7 @@ def score_resumes(
     if not isinstance(requested, list) or any(not isinstance(item, str) for item in requested):
         raise HTTPException(status_code=422, detail="required_skills должен содержать строки.")
     required = _normalize_skills(requested)
-    if not required:
+    if not required and not uploaded_only:
         raise HTTPException(status_code=422, detail="У вакансии должны быть обязательные навыки.")
 
     db = require_store()
@@ -222,10 +232,6 @@ def score_resumes(
         for kind, content in uploaded:
             try:
                 parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
-                if not parsed.professional_text.strip():
-                    errors.append({"file_number": str(len(errors) + 1), "file_type": kind,
-                                   "error": "Не найдены распознаваемые профессиональные разделы."})
-                    continue
             except ResumeParseError as exc:
                 errors.append({"file_number": str(len(errors) + 1), "file_type": kind, "error": str(exc)})
                 continue
@@ -238,15 +244,18 @@ def score_resumes(
         if batch:
             _write_anonymized_exports(db)
 
-        # An empty upload means score all preloaded resumes. Additional uploads
-        # extend the imported corpus and are included in the same batch.
-        # Existing archive records plus newly uploaded resumes are included;
-        # unique content hashes make repeat uploads idempotent.
-        candidates = [r for r in db.list_resumes() if not r.get("hidden", False)]
+        if uploaded_only:
+            # Resolve duplicates to their stable stored IDs, including repeat uploads.
+            by_hash = {item["content_hash"]: item for item in batch}
+            candidates = [{**by_hash[item["content_hash"]], "resume_id": item["resume_id"]}
+                          for item in db.list_resumes() if item["content_hash"] in by_hash]
+        else:
+            candidates = db.list_resumes()
         if not candidates:
-            raise HTTPException(status_code=422, detail="В MongoDB ещё нет резюме. Поместите ZIP в data и запустите импорт.")
+            detail = "В загруженном архиве нет читаемых резюме." if uploaded_only else "В MongoDB ещё нет резюме."
+            raise HTTPException(status_code=422, detail={"message": detail, "errors": errors})
         idf_resumes = [item for item in candidates]
-        idf_vacancies = db.list_vacancies()
+        idf_vacancies = [vacancy] if uploaded_only else db.list_vacancies()
         similarities = calculate_corpus_similarities(candidates, vacancy, idf_resumes, idf_vacancies)
         results = []
         for idx, (resume, similarity) in enumerate(zip(candidates, similarities), start=1):
