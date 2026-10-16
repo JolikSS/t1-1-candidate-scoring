@@ -129,7 +129,7 @@ Linux, PostgreSQL, Docker
                 self.saved.append(document)
 
         store = FakeStore()
-        upload_text = b"Summary\nJane Doe\nNo recognized experience section"
+        upload_text = b"Contact details\nJane Doe\nAddress: 42 Elm Street"
         with patch("api.main.require_store", return_value=store), \
              patch("api.main._unpack", return_value=([("txt", upload_text)], [])), \
              patch("api.main._write_anonymized_exports"):

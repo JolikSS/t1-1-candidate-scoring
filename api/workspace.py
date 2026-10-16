@@ -109,12 +109,15 @@ def upload(files: list[UploadFile] = File(...), db=Depends(get_db)):
     ids, documents = [], []
     for number, (kind, content) in enumerate(items, 1):
         try:
-            parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
-            if not parsed.professional_text.strip():
-                raise ResumeParseError("Не найдены распознаваемые профессиональные разделы.")
-            doc = db.save_resume({"resume_id": str(uuid.uuid4()),
-                "content_hash": hashlib.sha256(content).hexdigest(), "file_type": kind,
-                **parsed.to_anonymized_dict()})
+            digest = hashlib.sha256(content).hexdigest()
+            doc = db.get_resume_by_hash(digest)
+            if doc is None or "anonymized_text" not in doc:
+                parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
+                if not parsed.professional_text.strip():
+                    raise ResumeParseError("Не найдены распознаваемые профессиональные разделы.")
+                doc = db.save_resume({"resume_id": str(uuid.uuid4()),
+                    "content_hash": digest, "file_type": kind,
+                    **parsed.to_anonymized_dict()})
             if doc["resume_id"] not in ids:
                 ids.append(doc["resume_id"])
                 documents.append(safe_resume(doc))
