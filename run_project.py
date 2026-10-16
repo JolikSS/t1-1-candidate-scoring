@@ -14,18 +14,12 @@ PYTHON_PREFERRED = Path(r"A:\CandidateScoringEnv\Scripts\python.exe")
 DOCKER_CANDIDATES = [Path(r"A:\DockerDesktop\App\resources\bin\docker.exe"), Path(r"C:\Program Files\Docker\Docker\resources\bin\docker.exe")]
 API_URL = "http://127.0.0.1:8000"
 UI_URL = "http://127.0.0.1:8501"
-DOCKER_CONFIG_DIR = Path(r"A:\CandidateScoringData\docker-config")
-MONGOD_EXE = Path(r"A:\CandidateScoringData\mongodb\bin\mongod.exe")
-MONGO_DBPATH = Path(r"A:\CandidateScoringData\mongo-data-native")
-MONGO_LOG = MONGO_DBPATH / "mongod.log"
 PROCESSES: list[subprocess.Popen] = []
-MONGO_BACKEND = ""
 
 
 def runtime() -> str:
     python = str(PYTHON_PREFERRED) if PYTHON_PREFERRED.is_file() else sys.executable
-    check = ("import fastapi,pymongo,pypdf,requests,sklearn,streamlit,uvicorn; "
-             "assert tuple(map(int, streamlit.__version__.split('.')[:2])) >= (1, 49)")
+    check = "import fastapi,pymongo,pypdf,requests,sklearn,streamlit,uvicorn"
     if subprocess.run([python, "-c", check], cwd=ROOT, capture_output=True).returncode:
         print("Устанавливаю зависимости проекта...", flush=True)
         subprocess.run([python, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], cwd=ROOT, check=True)
@@ -38,11 +32,8 @@ def docker_cli() -> str:
 
 
 def start_docker_engine(docker: str) -> None:
-    try:
-        ping = subprocess.run([docker, "info"], cwd=ROOT, capture_output=True, text=True, timeout=3)
-    except subprocess.TimeoutExpired:
-        ping = None
-    if ping is not None and ping.returncode == 0:
+    ping = subprocess.run([docker, "info"], cwd=ROOT, capture_output=True, text=True)
+    if ping.returncode == 0:
         return
     desktop = Path(r"A:\DockerDesktop\App\Docker Desktop.exe")
     if not desktop.is_file():
@@ -50,55 +41,12 @@ def start_docker_engine(docker: str) -> None:
     if desktop.is_file():
         print("Запускаю Docker Desktop...", flush=True)
         subprocess.Popen([str(desktop)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    deadline = time.monotonic() + 25
+    deadline = time.monotonic() + 150
     while time.monotonic() < deadline:
-        try:
-            if subprocess.run([docker, "info"], cwd=ROOT, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
-                return
-        except subprocess.TimeoutExpired:
-            pass
+        if subprocess.run([docker, "info"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            return
         time.sleep(3)
-    raise RuntimeError("Docker Engine недоступен")
-
-
-def wait_for_mongo(python: str, timeout: int = 45) -> None:
-    probe = "from pymongo import MongoClient; MongoClient('mongodb://127.0.0.1:27017', serverSelectionTimeoutMS=1000).admin.command('ping')"
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if subprocess.run([python, "-c", probe], cwd=ROOT, stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL).returncode == 0:
-            return
-        time.sleep(1)
-    raise RuntimeError("MongoDB не ответила на 127.0.0.1:27017 за отведённое время.")
-
-
-def start_mongo(python: str) -> None:
-    global MONGO_BACKEND
-    docker = docker_cli()
-    if docker:
-        try:
-            start_docker_engine(docker)
-            environment = os.environ.copy()
-            if (DOCKER_CONFIG_DIR / "config.json").is_file():
-                environment["DOCKER_CONFIG"] = str(DOCKER_CONFIG_DIR)
-            subprocess.run([docker, "compose", "up", "-d", "mongo"], cwd=ROOT,
-                           env=environment, check=True, timeout=180)
-            wait_for_mongo(python)
-            MONGO_BACKEND = "docker"
-            return
-        except (RuntimeError, subprocess.SubprocessError, OSError) as exc:
-            print(f"Docker недоступен ({exc}). Переключаюсь на локальную MongoDB.", flush=True)
-    if not MONGOD_EXE.is_file():
-        raise RuntimeError(f"Не найден mongod.exe: {MONGOD_EXE}. Переустановите локальную MongoDB 7.0.")
-    MONGO_DBPATH.mkdir(parents=True, exist_ok=True)
-    print("Запускаю MongoDB 7.0 локально (Windows)...", flush=True)
-    mongo = subprocess.Popen([str(MONGOD_EXE), "--dbpath", str(MONGO_DBPATH), "--bind_ip", "127.0.0.1",
-                              "--port", "27017", "--logpath", str(MONGO_LOG), "--logappend"],
-                             cwd=MONGO_DBPATH, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    PROCESSES.append(mongo)
-    wait_for_mongo(python)
-    MONGO_BACKEND = "native"
+    raise RuntimeError("Docker Engine не запустился. Проверьте Docker Desktop и повторите Run.")
 
 
 def wait_for_api() -> None:
@@ -127,16 +75,11 @@ def stop_app_processes() -> None:
     if os.name != "nt":
         return
     root = str(ROOT).replace("'", "''")
-    current_pid = os.getpid()
     script = rf"""
 $root = '{root}'
-$currentPid = {current_pid}
 $items = Get-CimInstance Win32_Process | Where-Object {{
-  $line = $_.CommandLine
-  $_.ProcessId -ne $currentPid -and $line -and (
-    ($line.Contains($root) -and $line -match 'run_project\.py') -or
-    $line -match '(?i)-m\s+uvicorn\s+api\.main:app.*--port\s+8000' -or
-    $line -match '(?i)-m\s+streamlit\s+run\s+ui/app\.py.*--server\.port\s+8501')
+  $_.CommandLine -and $_.CommandLine.Contains($root) -and (
+    $_.CommandLine -match 'run_project\.py|api\.main:app|streamlit.*ui/app\.py')
 }}
 foreach ($item in $items) {{ & taskkill.exe /PID $item.ProcessId /T /F *> $null }}
 """
@@ -149,27 +92,26 @@ def shutdown() -> None:
     for proc in reversed(PROCESSES):
         kill_tree(proc)
     docker = docker_cli()
-    if docker and MONGO_BACKEND == "docker":
+    if docker:
         environment = os.environ.copy()
-        if (DOCKER_CONFIG_DIR / "config.json").is_file():
-            environment["DOCKER_CONFIG"] = str(DOCKER_CONFIG_DIR)
+        environment["DOCKER_CONFIG"] = r"A:\CandidateScoringData\docker-config"
         subprocess.run([docker, "compose", "stop", "mongo"], cwd=ROOT, env=environment, capture_output=True)
-    if MONGO_BACKEND == "native":
-        print(f"API/UI/MongoDB остановлены. Данные MongoDB сохранены в {MONGO_DBPATH}.", flush=True)
-    elif MONGO_BACKEND == "docker":
-        print("API/UI остановлены, MongoDB остановлена. Данные MongoDB сохранены в Docker volume.", flush=True)
+    print("API/UI остановлены, MongoDB остановлена. Данные MongoDB сохранены в Docker volume.", flush=True)
 
 
 def main() -> int:
     os.chdir(ROOT)
     python = runtime()
+    docker = docker_cli()
+    if not docker:
+        raise RuntimeError("Docker CLI не найден. Установите Docker Desktop и перезапустите файл.")
     stop_app_processes()
-    start_mongo(python)
+    start_docker_engine(docker)
     environment = os.environ.copy()
     environment["MONGODB_URI"] = "mongodb://127.0.0.1:27017"
     environment["MONGODB_DATABASE"] = "candidate_scoring"
-    if (DOCKER_CONFIG_DIR / "config.json").is_file():
-        environment["DOCKER_CONFIG"] = str(DOCKER_CONFIG_DIR)
+    environment["DOCKER_CONFIG"] = r"A:\CandidateScoringData\docker-config"
+    subprocess.run([docker, "compose", "up", "-d", "mongo"], cwd=ROOT, env=environment, check=True)
     print("Импортирую ZIP и обновляю обезличенные JSON...", flush=True)
     subprocess.run([python, "tools/bootstrap_data.py"], cwd=ROOT, env=environment, check=True)
     environment["DOCKER_CONFIG"] = r"A:\CandidateScoringData\docker-config"
