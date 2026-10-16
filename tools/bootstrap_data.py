@@ -5,12 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-import time
 import uuid
 import zipfile
 from pathlib import Path
-
-from pymongo.errors import PyMongoError
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -51,16 +48,7 @@ def write_json(name: str, documents: list[dict]) -> None:
 def main() -> int:
     db = MongoStore()
     try:
-        deadline = time.monotonic() + 90
-        while True:
-            try:
-                db.verify_and_prepare()
-                break
-            except PyMongoError as exc:
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("MongoDB не ответила за 90 секунд.") from exc
-                print("Жду готовности MongoDB...", flush=True)
-                time.sleep(2)
+        db.verify_and_prepare()
         vacancy_count = 0
         for kind, content in archive_pdfs(VACANCIES_ZIP):
             digest = hashlib.sha256(content).hexdigest()
@@ -79,11 +67,6 @@ def main() -> int:
         resume_count = 0
         errors = 0
         for kind, content in archive_pdfs(RESUMES_ZIP):
-            digest = hashlib.sha256(content).hexdigest()
-            existing = db.get_resume_by_hash(digest)
-            if existing and "anonymized_text" in existing:
-                resume_count += 1
-                continue
             try:
                 parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
             except ResumeParseError:
@@ -92,6 +75,7 @@ def main() -> int:
             if not parsed.professional_text.strip():
                 errors += 1
                 continue
+            digest = hashlib.sha256(content).hexdigest()
             db.save_resume({"resume_id": str(uuid.uuid4()), "content_hash": digest, "file_type": kind,
                             **parsed.to_anonymized_dict()})
             resume_count += 1
