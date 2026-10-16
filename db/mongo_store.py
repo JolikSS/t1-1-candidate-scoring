@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import uuid
+import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -20,6 +22,8 @@ class MongoStore:
         self.db.vacancies.create_index([("id", ASCENDING)], unique=True)
         self.db.resumes.create_index([("content_hash", ASCENDING)], unique=True)
         self.db.resumes.create_index([("resume_id", ASCENDING)], unique=True)
+        self.db.resume_parses.create_index([("resume_id", ASCENDING), ("version_id", ASCENDING)], unique=True)
+        self.db.resumes.update_many({"parser_version": {"$exists": False}}, {"$set": {"parser_version": "legacy", "parse_status": "legacy_structure_unavailable"}})
         self.db.scoring_runs.create_index([("vacancy_id", ASCENDING), ("created_at", ASCENDING)])
 
     def close(self) -> None:
@@ -47,12 +51,32 @@ class MongoStore:
     def get_vacancy(self, vacancy_id: str) -> dict[str, Any] | None:
         return self._plain(self.db.vacancies.find_one({"id": vacancy_id}, {"_id": 0}))
 
-    def save_resume(self, resume: dict[str, Any]) -> dict[str, Any]:
-        fields = {key: value for key, value in resume.items() if key != "resume_id"}
+    def save_resume(self, resume: dict[str, Any], *, reparse: bool = False) -> dict[str, Any]:
+        existing = self.get_resume_by_hash(resume["content_hash"])
+        if existing and "anonymized_text" in existing and not reparse:
+            return existing
+        identity = self.db.resumes.find_one_and_update({"content_hash": resume["content_hash"]},
+            {"$setOnInsert": {"resume_id": resume["resume_id"], "content_hash": resume["content_hash"], "hidden": False}},
+            upsert=True, return_document=ReturnDocument.AFTER)
+        fields = {key: value for key, value in resume.items() if key not in {"resume_id", "hidden", "parse_details"}}
+        details = resume.get("parse_details")
+        if details:
+            version_id = hashlib.sha256(json.dumps(details, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+            resume_id = identity["resume_id"]
+            self.db.resume_parses.update_one({"resume_id": resume_id, "version_id": version_id},
+                {"$setOnInsert": {"resume_id": resume_id, "version_id": version_id,
+                 "created_at": datetime.now(timezone.utc), **details}}, upsert=True)
+            fields.update(parser_version=details["parser_version"], parse_version_id=version_id, parse_status="parsed")
         return self._plain(self.db.resumes.find_one_and_update(
             {"content_hash": resume["content_hash"]},
             {"$set": fields, "$setOnInsert": {"resume_id": resume["resume_id"], "hidden": False}},
             upsert=True, return_document=ReturnDocument.AFTER))
+
+    def get_resume_by_hash(self, digest: str) -> dict[str, Any] | None:
+        return self._plain(self.db.resumes.find_one({"content_hash": digest}, {"_id": 0}))
+
+    def parse_versions(self, resume_id: str) -> list[dict]:
+        return list(self.db.resume_parses.find({"resume_id": resume_id}, {"_id": 0}).sort("created_at", -1))
 
     def list_resumes(self) -> list[dict[str, Any]]:
         return [self._plain(item) for item in self.db.resumes.find({}, {"_id": 0})]
