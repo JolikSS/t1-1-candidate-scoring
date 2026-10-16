@@ -47,27 +47,8 @@ def calculate_corpus_similarities(
     """Fit IDF across the persisted corpus; compare all batch resumes to vacancy."""
     vacancy_document = _weighted_vacancy(vacancy)
     resume_documents = [_weighted_resume(item) for item in resumes]
-    vacancy_id = vacancy.get("id")
-    resume_ids = {item.get("resume_id") for item in resumes if item.get("resume_id")}
-    candidate_documents = set(resume_documents)
-    context_vacancies = []
-    for item in corpus_vacancies:
-        document = _weighted_vacancy(item)
-        if vacancy_id and item.get("id") == vacancy_id:
-            continue
-        if document == vacancy_document:
-            continue
-        context_vacancies.append(document)
-    context_resumes = []
-    for item in corpus_resumes:
-        document = _weighted_resume(item)
-        if item.get("resume_id") in resume_ids:
-            continue
-        if not item.get("resume_id") and document in candidate_documents:
-            continue
-        context_resumes.append(document)
-    # Current candidate docs and vacancy enter the fitted corpus exactly once.
-    corpus = [*context_vacancies, *context_resumes, vacancy_document, *resume_documents]
+    corpus = [*(_weighted_vacancy(item) for item in corpus_vacancies),
+              *(_weighted_resume(item) for item in corpus_resumes), vacancy_document, *resume_documents]
     if not vacancy_document.strip():
         return [None] * len(resumes)
     vectorizer = TfidfVectorizer(
@@ -78,9 +59,14 @@ def calculate_corpus_similarities(
     try:
         matrix = vectorizer.fit_transform(corpus)
     except ValueError as exc:
-        if "empty vocabulary" in str(exc).casefold():
+        if "after pruning, no terms remain" in str(exc).casefold():
+            # Small uploaded batches can contain the same vocabulary in every document.
+            vectorizer.set_params(max_df=1.0)
+            matrix = vectorizer.fit_transform(corpus)
+        elif "empty vocabulary" in str(exc).casefold():
             return [0.0] * len(resumes)
-        raise
+        else:
+            raise
     vacancy_index = len(corpus) - len(resumes) - 1
     values: list[float | None] = []
     for index in range(len(resumes)):
