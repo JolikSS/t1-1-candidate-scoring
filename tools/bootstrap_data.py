@@ -79,6 +79,11 @@ def main() -> int:
         resume_count = 0
         errors = 0
         for kind, content in archive_pdfs(RESUMES_ZIP):
+            digest = hashlib.sha256(content).hexdigest()
+            existing = db.get_resume_by_hash(digest)
+            if existing and "anonymized_text" in existing:
+                resume_count += 1
+                continue
             try:
                 parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
             except ResumeParseError:
@@ -87,7 +92,6 @@ def main() -> int:
             if not parsed.professional_text.strip():
                 errors += 1
                 continue
-            digest = hashlib.sha256(content).hexdigest()
             db.save_resume({"resume_id": str(uuid.uuid4()), "content_hash": digest, "file_type": kind,
                             **parsed.to_anonymized_dict()})
             resume_count += 1

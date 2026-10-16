@@ -83,6 +83,27 @@ class WorkspaceTests(unittest.TestCase):
         self.client.patch('/workspace/resumes/r1', json={'hidden': False})
         self.assertEqual(self.start().status_code, 202)
 
+    def test_duplicate_upload_returns_saved_record_without_reparsing(self):
+        import hashlib
+        content=b"Skills\nPython"
+        self.db.db.resumes.update_one({"resume_id":"r1"},{"$set":{"content_hash":hashlib.sha256(content).hexdigest(),"hidden":True}})
+        with patch("api.workspace.parse_resume_bytes",side_effect=AssertionError("Duplicate must not be parsed")), patch("api.main._write_anonymized_exports"):
+            response=self.client.post('/workspace/uploads',files=[('files',('resume.txt',content,'text/plain'))])
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json()['resume_ids'],['r1'])
+        self.assertEqual(response.json()['hidden_count'],1)
+
+    def test_upload_repairs_interrupted_identity_record(self):
+        import hashlib
+        content=b"Skills\nPython"
+        self.db.db.resumes.insert_one({"resume_id":"partial","content_hash":hashlib.sha256(content).hexdigest(),"hidden":True})
+        with patch("api.main._write_anonymized_exports"):
+            response=self.client.post('/workspace/uploads',files=[('files',('resume.txt',content,'text/plain'))])
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json()['resume_ids'],['partial'])
+        self.assertEqual(self.db.get_resume('partial')['skills'],['Python'])
+        self.assertTrue(self.db.get_resume('partial')['hidden'])
+
     def test_idempotency_busy_and_conflicting_key(self):
         first = self.start().json()
         self.assertEqual(self.start().json()['run_id'], first['run_id'])
