@@ -8,9 +8,11 @@ import sys
 import uuid
 import zipfile
 from pathlib import Path
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+load_dotenv(ROOT / ".env")
 
 from db.data_paths import data_root
 from db.mongo_store import MongoStore
@@ -26,7 +28,8 @@ RESUMES_ZIP = DATA / "resumes.zip"
 
 def archive_pdfs(path: Path):
     if not path.is_file():
-        raise FileNotFoundError(f"Не найден архив: {path}\nСкопируйте исходный ZIP в папку data проекта.")
+        # Existing MongoDB documents do not depend on retaining source ZIPs.
+        return
     with zipfile.ZipFile(path) as archive:
         for member in archive.infolist():
             suffix = Path(member.filename.replace("\\", "/")).suffix.casefold()
@@ -46,6 +49,8 @@ def write_json(name: str, documents: list[dict]) -> None:
 
 
 def main() -> int:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
     db = MongoStore()
     try:
         db.verify_and_prepare()
@@ -67,6 +72,9 @@ def main() -> int:
         resume_count = 0
         errors = 0
         for kind, content in archive_pdfs(RESUMES_ZIP):
+            digest = hashlib.sha256(content).hexdigest()
+            if db.get_resume_by_hash(digest):
+                continue
             try:
                 parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
             except ResumeParseError:
