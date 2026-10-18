@@ -221,3 +221,9 @@ __marimo__/
 /data/vacancies.zip
 /data/resumes.zip
 /data/parsed_json/
+
+.runtime.json
+/data/vectors/
+
+# Local IDE configuration
+.idea/
