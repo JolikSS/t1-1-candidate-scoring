@@ -47,8 +47,18 @@ def calculate_corpus_similarities(
     """Fit IDF across the persisted corpus; compare all batch resumes to vacancy."""
     vacancy_document = _weighted_vacancy(vacancy)
     resume_documents = [_weighted_resume(item) for item in resumes]
-    corpus = [*(_weighted_vacancy(item) for item in corpus_vacancies),
-              *(_weighted_resume(item) for item in corpus_resumes), vacancy_document, *resume_documents]
+    # Compare each document exactly once, including repeated current-corpus inputs.
+    compared = [vacancy_document, *resume_documents]
+    def identity(kind, item, document):
+        return kind, item.get("resume_id" if kind == "resume" else "id") or document
+    extras = {identity("vacancy", item, _weighted_vacancy(item)): _weighted_vacancy(item)
+              for item in corpus_vacancies}
+    extras.update({identity("resume", item, _weighted_resume(item)): _weighted_resume(item)
+                   for item in corpus_resumes})
+    extras.pop(identity("vacancy", vacancy, vacancy_document), None)
+    for item, document in zip(resumes, resume_documents):
+        extras.pop(identity("resume", item, document), None)
+    corpus = [*extras.values(), *compared]
     if not vacancy_document.strip():
         return [None] * len(resumes)
     vectorizer = TfidfVectorizer(
