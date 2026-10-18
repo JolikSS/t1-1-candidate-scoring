@@ -21,12 +21,18 @@ from db.mongo_store import MongoStore
 from db.data_paths import data_root
 from Parser.resume_parser import ResumeParseError, parse_resume_bytes
 from Parser.vacancy_parser import SKILL_CATALOG, VacancyParseError, parse_vacancy_bytes
-from scorer.benchmark import analyze_skills
+from db.graph_store import GraphStore
+from scorer.fusion import reciprocal_rank_fusion
+from scorer.semantic_similarity import calculate_semantic_similarities
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from scorer.skill_matching import canonical_skill_key
 from scorer.text_similarity import calculate_corpus_similarities
 
 LOGGER = logging.getLogger(__name__)
 store: MongoStore | None = None
+graph: GraphStore | None = None
 MAX_BATCH_RESUMES = 500
 MAX_RESUME_BYTES = 20 * 1024 * 1024
 MAX_BATCH_BYTES = 512 * 1024 * 1024
@@ -41,19 +47,27 @@ class VacancyInput(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    global store
+    global store, graph
     try:
         store = MongoStore()
         store.verify_and_prepare()
-        LOGGER.info("MongoDB подключена")
-    except (PyMongoError, OSError) as exc:
+        graph = GraphStore()
+        graph.verify_and_prepare()
+        LOGGER.info("MongoDB и Neo4j подключены")
+    except Exception as exc:
         LOGGER.exception("Не удалось подключиться к MongoDB: %s", exc)
         if store:
             store.close()
         store = None
+        if graph:
+            graph.close()
+        graph = None
     try:
         yield
     finally:
+        if graph:
+            graph.close()
+            graph = None
         if store:
             store.close()
             store = None
@@ -78,6 +92,12 @@ def require_store() -> MongoStore:
     if store is None:
         raise HTTPException(status_code=503, detail="MongoDB недоступна. Запустите Docker Desktop и повторите запуск.")
     return store
+
+
+def require_graph():
+    if graph is None:
+        raise HTTPException(status_code=503, detail="Neo4j недоступна.")
+    return graph
 
 
 def _normalize_skills(skills: list[str]) -> list[str]:
@@ -147,7 +167,8 @@ def health() -> dict[str, str]:
         require_store().client.admin.command("ping")
     except PyMongoError as exc:
         raise HTTPException(status_code=503, detail="MongoDB недоступна.") from exc
-    return {"status": "ok", "database": "mongodb"}
+    require_graph().driver.verify_connectivity()
+    return {"status": "ok", "database": "mongodb", "graph": "neo4j"}
 
 
 @app.get("/vacancies")
@@ -185,6 +206,7 @@ def create_vacancy(vacancy: VacancyInput) -> dict[str, Any]:
 
 @app.post("/vacancies/upload")
 def upload_vacancies(files: list[UploadFile] = File(...)) -> dict[str, Any]:
+    db = require_store()
     documents, errors = _unpack(files)
     vacancies = {}
     for index, (kind, content) in enumerate(documents, 1):
@@ -194,8 +216,11 @@ def upload_vacancies(files: list[UploadFile] = File(...)) -> dict[str, Any]:
             errors.append({"file_number": str(index), "file_type": kind, "error": str(exc)})
             continue
         vacancy_id = f"vac-{hashlib.sha256(content).hexdigest()[:20]}"
-        vacancies[vacancy_id] = {"id": vacancy_id, "title": parsed.title,
-                                  "required_skills": parsed.required_skills, "description": parsed.description}
+        db.upsert_vacancy(vacancy_id, parsed.title, parsed.required_skills, parsed.description,
+                          {"requirements": parsed.requirements, "responsibilities": parsed.responsibilities})
+        vacancies[vacancy_id] = db.get_vacancy(vacancy_id)
+    if vacancies:
+        _write_anonymized_exports(db)
     return {"vacancies": list(vacancies.values()), "errors": errors}
 
 
@@ -215,25 +240,35 @@ def score_resumes(
     if not isinstance(requested, list) or any(not isinstance(item, str) for item in requested):
         raise HTTPException(status_code=422, detail="required_skills должен содержать строки.")
     required = _normalize_skills(requested)
-    if not required and not uploaded_only:
-        raise HTTPException(status_code=422, detail="У вакансии должны быть обязательные навыки.")
 
     db = require_store()
+    graph_db = require_graph()
     resolved_id = vacancy_id.strip() or str(uuid.uuid4())
     vacancy = {"id": resolved_id, "title": vacancy_title.strip(), "required_skills": required,
                "description": vacancy_description.strip()}
     try:
-        db.upsert_vacancy(resolved_id, vacancy["title"], required, vacancy["description"])
+        if not db.get_vacancy(resolved_id):
+            db.upsert_vacancy(resolved_id, vacancy["title"], required, vacancy["description"])
+        vacancy = db.get_vacancy(resolved_id)
+        required = vacancy["required_skills"]
         _write_anonymized_exports(db)
         uploaded, errors = _unpack(files)
         catalog = list(dict.fromkeys([*SKILL_CATALOG, *required,
                                       *(skill for v in db.list_vacancies() for skill in v.get("required_skills", []))]))
         batch: list[dict[str, Any]] = []
         for kind, content in uploaded:
+            digest = hashlib.sha256(content).hexdigest()
+            existing = db.get_resume_by_hash(digest)
+            if existing:
+                batch.append(existing)
+                continue
             try:
                 parsed = parse_resume_bytes(f"resume.{kind}", content, catalog)
             except ResumeParseError as exc:
                 errors.append({"file_number": str(len(errors) + 1), "file_type": kind, "error": str(exc)})
+                continue
+            if not parsed.professional_text.strip():
+                errors.append({"file_type": kind, "error": "Нет профессионального текста для сравнения."})
                 continue
             resume_id = str(uuid.uuid4())
             safe_fields = parsed.to_anonymized_dict()
@@ -244,30 +279,35 @@ def score_resumes(
         if batch:
             _write_anonymized_exports(db)
 
+        # Both methods consume persisted MongoDB fields, never transient parser output.
+        db.refresh_skills(catalog)
+        corpus_resumes = [r for r in db.list_resumes() if not r.get("hidden") and r.get("anonymized_text", "").strip()]
+        candidates = corpus_resumes
         if uploaded_only:
-            # Resolve duplicates to their stable stored IDs, including repeat uploads.
-            by_hash = {item["content_hash"]: item for item in batch}
-            candidates = [{**by_hash[item["content_hash"]], "resume_id": item["resume_id"]}
-                          for item in db.list_resumes() if item["content_hash"] in by_hash]
-        else:
-            candidates = db.list_resumes()
+            hashes = {r["content_hash"] for r in batch}
+            candidates = [r for r in corpus_resumes if r["content_hash"] in hashes]
         if not candidates:
             detail = "В загруженном архиве нет читаемых резюме." if uploaded_only else "В MongoDB ещё нет резюме."
             raise HTTPException(status_code=422, detail={"message": detail, "errors": errors})
-        idf_resumes = [item for item in candidates]
-        idf_vacancies = [vacancy] if uploaded_only else db.list_vacancies()
-        similarities = calculate_corpus_similarities(candidates, vacancy, idf_resumes, idf_vacancies)
-        results = []
-        for idx, (resume, similarity) in enumerate(zip(candidates, similarities), start=1):
-            analysis = analyze_skills(resume.get("skills", []), required)
-            results.append({"candidate": f"Кандидат {resume['resume_id'][-6:]}", "file_number": idx,
-                            "file_type": resume.get("file_type", "pdf"), "score": analysis["score"],
-                            "text_similarity": similarity, "matched_skills": analysis["matched_skills"],
-                            "missing_skills": analysis["missing_skills"], "resume_id": resume["resume_id"]})
-        results.sort(key=lambda item: (-item["score"], -(item["text_similarity"] or 0), item["candidate"]))
-        db.save_scoring_run(resolved_id, results)
-        return {"vacancy_id": resolved_id, "vacancy_title": vacancy["title"], "results": results,
-                "errors": errors, "resume_count": len(candidates)}
+        similarities = calculate_corpus_similarities(candidates, vacancy, corpus_resumes, db.list_vacancies())
+        try:
+            semantic = calculate_semantic_similarities(candidates, vacancy)
+            hybrid = reciprocal_rank_fusion(similarities, semantic["scores"])
+            metrics = [{"candidate": f"Кандидат {resume['resume_id'][-6:]}", "resume_id": resume["resume_id"],
+                        "file_number": index, "file_type": resume.get("file_type", "pdf"),
+                        "text_similarity": lexical, "semantic_similarity": dense, "hybrid_score": fused}
+                       for index, (resume, lexical, dense, fused) in enumerate(
+                           zip(candidates, similarities, semantic["scores"], hybrid), 1)]
+            run_id = str(uuid.uuid4())
+            results = graph_db.rank(run_id, vacancy, candidates, metrics)
+        except Exception as exc:
+            LOGGER.error("Hybrid scoring failed: %s", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Не удалось рассчитать E5 или получить рейтинг из Neo4j.") from exc
+        if len(results) != len(candidates):
+            raise HTTPException(status_code=503, detail="Neo4j вернула неполный рейтинг.")
+        db.save_scoring_run(resolved_id, results, run_id=run_id)
+        return {"vacancy_id": resolved_id, "vacancy_title": vacancy["title"], "run_id": run_id, "results": results,
+                "errors": errors, "resume_count": len(candidates), "embedding_cache": {"hits": semantic["cache_hits"], "misses": semantic["cache_misses"]}}
     except PyMongoError as exc:
         LOGGER.exception("MongoDB error")
         raise HTTPException(status_code=503, detail="Ошибка записи или чтения MongoDB.") from exc
