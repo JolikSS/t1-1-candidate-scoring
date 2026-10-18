@@ -46,15 +46,28 @@ class MongoStore:
     def get_vacancy(self, vacancy_id: str) -> dict[str, Any] | None:
         return self._plain(self.db.vacancies.find_one({"id": vacancy_id}, {"_id": 0}))
 
+    def get_resume_by_hash(self, digest: str):
+        return self.db.resumes.find_one({"content_hash": digest}, {"_id": 0})
+
     def save_resume(self, resume: dict[str, Any]) -> None:
         self.db.resumes.update_one({"content_hash": resume["content_hash"]}, {"$setOnInsert": resume}, upsert=True)
 
     def list_resumes(self) -> list[dict[str, Any]]:
         return [self._plain(item) for item in self.db.resumes.find({}, {"_id": 0})]
 
-    def save_scoring_run(self, vacancy_id: str, results: list[dict[str, Any]]) -> None:
+    def refresh_skills(self, catalog: list[str]) -> None:
+        """Refresh derived skills from saved text when the vacancy catalog grows."""
+        from scorer.skill_matching import find_skill_mentions
+        for resume in self.list_resumes():
+            if resume.get("hidden"):
+                continue
+            skills = find_skill_mentions(resume.get("anonymized_text", ""), catalog)
+            if skills != resume.get("skills", []):
+                self.db.resumes.update_one({"resume_id": resume["resume_id"]}, {"$set": {"skills": skills}})
+
+    def save_scoring_run(self, vacancy_id: str, results: list[dict[str, Any]], run_id: str | None = None) -> None:
         self.db.scoring_runs.insert_one({"vacancy_id": vacancy_id, "created_at": datetime.now(timezone.utc),
-                                         "results": results})
+                                         "results": results, "graph_run_id": run_id})
 
     def list_results(self, vacancy_id: str) -> list[dict[str, Any]]:
         runs = self.db.scoring_runs.find({"vacancy_id": vacancy_id}, {"_id": 0}).sort("created_at", -1).limit(1)
