@@ -1,0 +1,2 @@
+# Tests only; install alongside requirements.txt.
+mongomock>=4.3,<5
