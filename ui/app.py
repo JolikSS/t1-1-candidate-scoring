@@ -1,4 +1,4 @@
-"""Upload archives, select a vacancy and rank only uploaded resumes."""
+"""Import archives and rank the persistent MongoDB corpus through Neo4j."""
 import hashlib
 import json
 import os
@@ -19,7 +19,7 @@ def show_errors(errors):
 def post_archive(path, archive, data=None):
     try:
         response = requests.post(f"{API_URL}{path}", data=data,
-            files=[("files", (archive.name, archive.getvalue(), "application/zip"))], timeout=300)
+            files=([("files", (archive.name, archive.getvalue(), "application/zip"))] if archive else None), timeout=1800)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as exc:
@@ -45,6 +45,7 @@ def main():
     with left:
         vacancies_zip = st.file_uploader("Вакансии", type=["zip"], key="vacancies_zip",
                                          help="ZIP-архив с PDF-файлами вакансий.")
+        vacancies = []
         if vacancies_zip is not None:
             digest = hashlib.sha256(vacancies_zip.getvalue()).hexdigest()
             cached = st.session_state.get("vacancies_payload")
@@ -58,13 +59,19 @@ def main():
                     cached = None
             if cached:
                 vacancies = cached[1]["vacancies"]
-                if vacancies:
-                    selected = st.selectbox("Выберите вакансию", vacancies, index=None,
-                        placeholder="Выберите из архива", key=f"vacancy_{digest}",
-                        format_func=lambda v: f"{v['title']} · {v['id'][-6:]}")
-                else:
+                if not vacancies:
                     st.warning("В архиве нет читаемых вакансий.")
                 show_errors(cached[1]["errors"])
+        else:
+            try:
+                response = requests.get(f"{API_URL}/vacancies", timeout=10)
+                response.raise_for_status()
+                vacancies = response.json()
+            except requests.RequestException:
+                st.warning("База вакансий недоступна.")
+        if vacancies:
+            selected = st.selectbox("Выберите вакансию", vacancies, index=None,
+                placeholder="Выберите вакансию", format_func=lambda v: f"{v['title']} · {v['id'][-6:]}")
     with right:
         resumes_zip = st.file_uploader("Резюме", type=["zip"], key="resumes_zip",
                                        help="ZIP-архив с PDF-файлами резюме.")
@@ -75,14 +82,14 @@ def main():
                  hashlib.sha256(resumes_zip.getvalue()).hexdigest() if resumes_zip else None)
     if st.session_state.get("result_signature") != signature:
         st.session_state.pop("results", None)
-    if st.button("Найти кандидатов", type="primary", disabled=selected is None or resumes_zip is None):
+    if st.button("Найти кандидатов", type="primary", disabled=selected is None):
         st.session_state.pop("results", None)
         with st.spinner("Сравниваю резюме с вакансией…"):
             payload = post_archive("/score", resumes_zip, {
                 "vacancy_id": selected["id"], "vacancy_title": selected["title"],
                 "vacancy_description": selected["description"],
                 "required_skills": json.dumps(selected["required_skills"], ensure_ascii=False),
-                "uploaded_only": "true",
+                "uploaded_only": "false",
             })
         if payload is not None:
             st.session_state["results"] = payload
@@ -92,6 +99,7 @@ def main():
         st.subheader(f"Кандидаты: {payload['vacancy_title']}")
         table = [{"№": index, "Кандидат": row["candidate"],
                   "Покрытие навыков, %": row["score"], "TF-IDF сходство, %": row["text_similarity"],
+                  "E5, косинус": row.get("semantic_similarity"), "Общий ранг, RRF": row.get("hybrid_score"),
                   "Совпало": ", ".join(row["matched_skills"]) or "—",
                   "Не найдено": ", ".join(row["missing_skills"]) or "—"}
                  for index, row in enumerate(payload["results"], 1)]
