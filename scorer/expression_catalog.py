@@ -2,6 +2,18 @@
 
 EXPRESSION_RULES_VERSION = "expressions-1.0"
 
+# Shared defaults for raw-text comparison. Parser's existing catalog remains
+# compatible; moving its import is a separate component integration change.
+DEFAULT_SKILLS = (
+    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", ".NET", "SQL", "PostgreSQL", "MySQL",
+    "MongoDB", "Neo4j", "Linux", "Windows Server", "Docker", "Kubernetes", "Git", "FastAPI", "Django",
+    "Flask", "React", "Angular", "Vue", "Node.js", "REST API", "GraphQL", "Redis", "Kafka", "RabbitMQ",
+    "AWS", "Azure", "GCP", "Terraform", "Ansible", "Jenkins", "GitLab CI", "CI/CD", "HTML", "CSS",
+    "PowerShell", "Bash", "VMware", "VMware ESXi", "MS Exchange", "Active Directory", "TCP/IP", "DNS",
+    "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch", "Excel", "Power BI", "Tableau",
+    "Agile", "Scrum", "1C", "SAP", "English", "Ukrainian", "Russian",
+)
+
 SKILL_ALIASES = {
     "python": ("python 2", "python 3", "python2", "python3"),
     "javascript": ("js", "java script"),
