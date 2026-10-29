@@ -11,6 +11,8 @@ from pathlib import Path
 
 from scorer.skill_matching import find_skill_mentions
 from Parser.document_structure import compile_headings, match_heading, normalize_line, select_job_title, title_candidate
+from Parser.document_structure import clean_export_text
+from scorer.expression_catalog import DEFAULT_SKILLS
 
 
 class ResumeParseError(ValueError):
@@ -112,7 +114,7 @@ def _legacy_sections(text: str) -> dict[str, list[str]]:
     return result
 
 
-PARSER_VERSION = "rules-2.2"
+PARSER_VERSION = "rules-2.3"
 EXTRA_ALIASES = {
     "title": {"desired position", "desired role", "job title", "должность", "желаемая должность и зарплата"},
     "summary": {"summary", "professional summary", "profile", "профессиональное резюме"},
@@ -254,13 +256,14 @@ def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> 
     if not raw_text.strip():
         raise ResumeParseError("В документе нет текстового слоя; сканированные PDF без OCR не поддерживаются.")
 
-    details = _structured_sections(raw_text, skill_catalog or [])
+    catalog = list(DEFAULT_SKILLS) if skill_catalog is None else skill_catalog
+    details = _structured_sections(clean_export_text(raw_text), catalog)
     extracted = details["sections"]
     experience = extracted["experience"]
     education = extracted["education"]
     title = extracted["title"]
     professional = "\n\n".join(value for value in extracted.values() if value)
-    skills = find_skill_mentions(professional, skill_catalog or [])
+    skills = find_skill_mentions(professional, catalog)
     # Raw input is intentionally not returned: it may contain personal data.
     return ParsedResume("", None, professional, professional, skills,
                         experience, education, title, details)

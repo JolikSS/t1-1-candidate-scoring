@@ -5,6 +5,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections.abc import Iterable, Mapping
 import re
+from html import unescape
+
+
+EXPORT_HEADER = re.compile(
+    r"\d{1,2}[./]\d{1,2}[./]\d{2,4},?\s+\d{1,2}:\d{2}\s+(?:SuperJob|HeadHunter|hh\.ru)", re.I,
+)
+EXPORT_FOOTER = re.compile(r"https?://\S+\s+\d{1,3}\s*/\s*\d{1,3}", re.I)
+
+
+def clean_export_text(text: str) -> str:
+    """Remove complete print metadata lines, keeping ordinary dates and URLs in prose."""
+    lines = []
+    for raw in unescape(text).splitlines():
+        normalized = " ".join(raw.split())
+        lines.append("" if EXPORT_HEADER.fullmatch(normalized) or EXPORT_FOOTER.fullmatch(normalized) else raw)
+    return "\n".join(lines)
 
 
 BULLET = re.compile(r"^(?:[•●▪◦‣\uf0b7\uf0a7]\s*|[*–—-]\s+|\d{1,2}[.)]\s+)")

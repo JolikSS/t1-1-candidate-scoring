@@ -10,21 +10,15 @@ from pathlib import Path
 from pypdf import PdfReader
 from Parser.document_structure import COMPANY as COMPANY_LINE, compile_headings, match_heading, select_job_title
 from Parser.vacancy_requirements import classify_vacancy_skills
+from Parser.document_structure import clean_export_text
+from scorer.expression_catalog import CATALOG_VERSION, DEFAULT_SKILLS
 
 
 class VacancyParseError(ValueError):
     pass
 
 
-SKILL_CATALOG = [
-    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", ".NET", "SQL", "PostgreSQL", "MySQL",
-    "MongoDB", "Neo4j", "Linux", "Windows Server", "Docker", "Kubernetes", "Git", "FastAPI", "Django",
-    "Flask", "React", "Angular", "Vue", "Node.js", "REST API", "GraphQL", "Redis", "Kafka", "RabbitMQ",
-    "AWS", "Azure", "GCP", "Terraform", "Ansible", "Jenkins", "GitLab CI", "CI/CD", "HTML", "CSS",
-    "PowerShell", "Bash", "VMware", "VMware ESXi", "MS Exchange", "Active Directory", "TCP/IP", "DNS",
-    "PostgreSQL", "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch", "Excel", "Power BI",
-    "Tableau", "Agile", "Scrum", "1C", "SAP", "English", "Ukrainian", "Russian",
-]
+SKILL_CATALOG = list(DEFAULT_SKILLS)
 
 
 @dataclass(frozen=True)
@@ -121,7 +115,7 @@ def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
             raise VacancyParseError("Не удалось прочитать PDF вакансии.") from exc
     else:
         raise VacancyParseError("Поддерживаются PDF и TXT.")
-    lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+    lines = [" ".join(line.split()) for line in clean_export_text(text).splitlines() if line.strip()]
     if not lines:
         raise VacancyParseError("Не найден текстовый слой; OCR не поддерживается.")
     title, title_details, title_warnings = select_job_title(lines, HEADINGS, known_terms=SKILL_CATALOG)
@@ -144,6 +138,7 @@ def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
         title=title or "Вакансия", requirements=requirements[:12000], responsibilities=responsibilities[:12000],
         description=description[:20000], required_skills=classification.required_skills,
         preferred_skills=classification.preferred_skills,
-        parse_details={"parser_version": "vacancy-rules-1.1", "skill_evidence": classification.evidence,
+        parse_details={"parser_version": "vacancy-rules-1.2", "catalog_version": CATALOG_VERSION,
+                       "skill_evidence": classification.evidence,
                        "title_selection": title_details, "warnings": warnings},
     )
