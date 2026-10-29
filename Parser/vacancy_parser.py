@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 
 from pypdf import PdfReader
+from Parser.document_structure import COMPANY as COMPANY_LINE, compile_headings, match_heading, select_job_title
 from Parser.vacancy_requirements import classify_vacancy_skills
 
 
@@ -39,14 +40,11 @@ class ParsedVacancy:
 
 EMAIL_URL = re.compile(r"(?:\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|https?://\S+|www\.\S+)", re.I)
 PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
-COMPANY_LINE = re.compile(
-    r"^(?:ООО|ОАО|ЗАО|ПАО|АО|ИП)\s+",
-    re.IGNORECASE,
-)
 SECTION_ALIASES = {
     "requirements": (
         "требования", "мы ожидаем", "что нужно", "квалификация", "requirements", "what you need",
         "обязательные требования", "обязательные навыки", "must have", "must-have", "required qualifications",
+        "требования к квалификации", "что для этого требуется", "что обязательно", "что мы ищем в кандидате",
     ),
     "preferred": (
         "будет плюсом", "будут плюсом", "будет преимуществом", "желательно",
@@ -54,21 +52,33 @@ SECTION_ALIASES = {
     ),
     "responsibilities": (
         "обязанности", "задачи", "что делать", "responsibilities", "what you will do",
+        "что нужно делать", "что предстоит делать", "что предстоит сделать", "чем предстоит заниматься",
+        "задачи, которые предстоит выполнять", "основные задачи", "ключевые задачи",
     ),
-    "conditions": ("условия", "мы предлагаем", "условия работы", "conditions", "we offer"),
+    "conditions": (
+        "условия", "мы предлагаем", "условия работы", "conditions", "we offer",
+        "что вы получите", "условия оформления", "условия работы и компенсация",
+    ),
+    "context": (
+        "наш стек", "стек технологий", "что мы используем", "что мы делаем", "что уже есть",
+        "ваши личные качества (soft skills)", "о вакансии", "описание вакансии",
+    ),
     "stop": (
         "контакты", "как откликнуться", "работодатель", "компания", "адрес", "телефон",
         "о компании", "contact", "about company",
     ),
 }
-HEADINGS = {
-    name: re.compile(
-        r"(?:" + "|".join(re.escape(alias) for alias in aliases)
-        + r")\s*(?:[:：]\s*(?P<content>.*))?",
-        re.IGNORECASE,
-    )
-    for name, aliases in SECTION_ALIASES.items()
+HEADING_VARIANTS = {
+    "requirements": (
+        r"(?:основные\s+)?требования\s+к\s+(?:кандидату|соискателю)",
+        r"(?:что\s+)?мы\s+(?:ожидаем|жд[её]м)(?:\s+от\s+(?:вас|кандидата|тебя))?",
+        r"что\s+(?:ожидаем|жд[её]м)\s+от\s+(?:вас|кандидата|тебя)",
+        r"наши\s+ожидания(?:\s+от\s+кандидата|\s*\(требования\s+к\s+кандидату\))?",
+    ),
+    "responsibilities": (r"чем\s+занимается\s+(?:наша\s+)?[\w-]*команда",),
+    "conditions": (r"(?:что\s+)?мы\s+(?:предлагаем|готовы\s+предложить)",),
 }
+HEADINGS = compile_headings(SECTION_ALIASES, HEADING_VARIANTS)
 
 
 def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
@@ -81,13 +91,10 @@ def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
     sections: dict[str, list[str]] = {name: [] for name in SECTION_ALIASES if name != "stop"}
     active = ""
     for line in lines:
-        heading_line = re.sub(r"^[•*–—-]\s+", "", line)
-        for name, pattern in HEADINGS.items():
-            heading = pattern.fullmatch(heading_line)
-            if heading:
-                active = "" if name == "stop" else name
-                line = heading.group("content") or ""
-                break
+        heading = match_heading(line, HEADINGS)
+        if heading:
+            active = "" if heading.section == "stop" else heading.section
+            line = heading.content
         if not active or not line:
             continue
         line = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
@@ -117,27 +124,26 @@ def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
     lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
     if not lines:
         raise VacancyParseError("Не найден текстовый слой; OCR не поддерживается.")
-    # Job titles usually lead these exports. Skip dates, salaries, contact lines.
-    title = "Вакансия"
-    for line in lines[:15]:
-        clean = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
-        if COMPANY_LINE.match(clean):
-            continue
-        if (3 <= len(clean) <= 140 and not re.search(r"\d{2,}|руб|грн|зарплат|зарплата|опубликован|обновлен", clean, re.I)
-                and not re.search(r"@|https?://|\b(?:город|адрес|телефон|контакт)", clean, re.I)):
-            title = clean
-            break
+    title, title_details, title_warnings = select_job_title(lines, HEADINGS, known_terms=SKILL_CATALOG)
     sections = _extract_sections(lines)
     requirements = " ".join(sections["requirements"])
     responsibilities = " ".join(sections["responsibilities"])
     description = " ".join(filter(None, (
-        requirements, " ".join(sections["preferred"]), responsibilities, " ".join(sections["conditions"]),
+        requirements, " ".join(sections["preferred"]), responsibilities,
+        " ".join(sections["context"]), " ".join(sections["conditions"]),
     )))
     classification = classify_vacancy_skills(sections["requirements"], sections["preferred"], SKILL_CATALOG)
+    warnings = [*title_warnings, *classification.warnings]
+    if not requirements:
+        warnings.append("missing_requirements")
+    if not responsibilities:
+        warnings.append("missing_responsibilities")
+    if not description:
+        warnings.append("empty_professional_text")
     return ParsedVacancy(
-        title=title[:200], requirements=requirements[:12000], responsibilities=responsibilities[:12000],
+        title=title or "Вакансия", requirements=requirements[:12000], responsibilities=responsibilities[:12000],
         description=description[:20000], required_skills=classification.required_skills,
         preferred_skills=classification.preferred_skills,
-        parse_details={"parser_version": "vacancy-rules-1.0", "skill_evidence": classification.evidence,
-                       "warnings": classification.warnings},
+        parse_details={"parser_version": "vacancy-rules-1.1", "skill_evidence": classification.evidence,
+                       "title_selection": title_details, "warnings": warnings},
     )
