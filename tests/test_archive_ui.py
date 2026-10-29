@@ -117,10 +117,10 @@ class ArchiveFlowTests(unittest.TestCase):
         self.assertEqual(len(app.get("file_uploader")), 2)
         self.assertTrue(app.button[0].disabled)
 
-    def test_ui_works_without_archives_and_displays_hybrid_table(self):
+    def test_ui_works_without_archives_and_displays_tfidf_table(self):
         vacancy = {"id": "test", "title": "Python", "description": "Python", "required_skills": ["Python"]}
         rows = [{"candidate": "Candidate A", "score": 100, "text_similarity": 12,
-                 "semantic_similarity": .8, "hybrid_score": .03, "matched_skills": ["Python"], "missing_skills": []}]
+                 "matched_skills": ["Python"], "missing_skills": []}]
         with patch("requests.get") as get, patch("requests.post") as post:
             get.return_value.json.return_value = [vacancy]
             post.return_value.json.return_value = {"vacancy_title": "Python", "results": rows, "errors": []}
@@ -130,6 +130,8 @@ class ArchiveFlowTests(unittest.TestCase):
             app.button[0].click().run()
             self.assertFalse(app.exception)
             self.assertEqual(len(app.dataframe[0].value), 1)
+            self.assertEqual(len(app.dataframe[0].value.columns), 6)
+            self.assertIn("TF-IDF, сходство (0–100)", app.dataframe[0].value.columns)
             self.assertIsNone(post.call_args.kwargs["files"])
             self.assertEqual(post.call_args.kwargs["data"]["uploaded_only"], "false")
 
