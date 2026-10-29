@@ -37,12 +37,55 @@ class ParsedVacancy:
 
 EMAIL_URL = re.compile(r"(?:\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|https?://\S+|www\.\S+)", re.I)
 PHONE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
-HEADINGS = {
-    "requirements": re.compile(r"^(?:требования|мы ожидаем|что нужно|квалификация|requirements|what you need)\s*[:：]?$", re.I),
-    "responsibilities": re.compile(r"^(?:обязанности|задачи|что делать|responsibilities|what you will do)\s*[:：]?$", re.I),
-    "conditions": re.compile(r"^(?:условия|мы предлагаем|условия работы|conditions|we offer)\s*[:：]?$", re.I),
-    "stop": re.compile(r"^(?:контакты|как откликнуться|работодатель|компания|адрес|телефон|о компании|contact|about company)\s*[:：]?$", re.I),
+COMPANY_LINE = re.compile(
+    r"^(?:ООО|ОАО|ЗАО|ПАО|АО|ИП)\s+",
+    re.IGNORECASE,
+)
+SECTION_ALIASES = {
+    "requirements": (
+        "требования", "мы ожидаем", "что нужно", "квалификация", "requirements", "what you need",
+    ),
+    "responsibilities": (
+        "обязанности", "задачи", "что делать", "responsibilities", "what you will do",
+    ),
+    "conditions": ("условия", "мы предлагаем", "условия работы", "conditions", "we offer"),
+    "stop": (
+        "контакты", "как откликнуться", "работодатель", "компания", "адрес", "телефон",
+        "о компании", "contact", "about company",
+    ),
 }
+HEADINGS = {
+    name: re.compile(
+        r"(?:" + "|".join(re.escape(alias) for alias in aliases)
+        + r")\s*(?:[:：]\s*(?P<content>.*))?",
+        re.IGNORECASE,
+    )
+    for name, aliases in SECTION_ALIASES.items()
+}
+
+
+def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
+    """Collect section content until the next recognized heading.
+
+    Inline content requires a colon so ordinary sentences starting with a
+    heading word do not accidentally switch sections. Stop headings discard
+    their own content and following lines until another section starts.
+    """
+    sections: dict[str, list[str]] = {"requirements": [], "responsibilities": [], "conditions": []}
+    active = ""
+    for line in lines:
+        for name, pattern in HEADINGS.items():
+            heading = pattern.fullmatch(line)
+            if heading:
+                active = "" if name == "stop" else name
+                line = heading.group("content") or ""
+                break
+        if not active or not line:
+            continue
+        line = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
+        if line and not re.search(r"\b(?:адрес|телефон|контакт|зарплатная карта)\b", line, re.I):
+            sections[active].append(line)
+    return sections
 
 
 def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
@@ -70,24 +113,17 @@ def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
     title = "Вакансия"
     for line in lines[:15]:
         clean = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
+        if COMPANY_LINE.match(clean):
+            continue
         if (3 <= len(clean) <= 140 and not re.search(r"\d{2,}|руб|грн|зарплат|зарплата|опубликован|обновлен", clean, re.I)
                 and not re.search(r"@|https?://|\b(?:город|адрес|телефон|контакт)", clean, re.I)):
             title = clean
             break
-    active = ""
-    sections = {"requirements": [], "responsibilities": [], "conditions": []}
-    for line in lines:
-        matched = next((name for name, pattern in HEADINGS.items() if pattern.match(line)), None)
-        if matched:
-            active = "" if matched == "stop" else matched
-            continue
-        if not active:
-            continue
-        line = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
-        if line and not re.search(r"\b(?:адрес|телефон|контакт|зарплатная карта)\b", line, re.I):
-            sections[active].append(line)
+    sections = _extract_sections(lines)
     requirements = " ".join(sections["requirements"])
     responsibilities = " ".join(sections["responsibilities"])
     description = " ".join(filter(None, (requirements, responsibilities, " ".join(sections["conditions"]))))
-    skills = find_skill_mentions(description, SKILL_CATALOG)
+    # Only explicit requirements supply mandatory skills. Keep their line
+    # boundaries so a negation on one line does not affect the next one.
+    skills = find_skill_mentions("\n".join(sections["requirements"]), SKILL_CATALOG)
     return ParsedVacancy(title[:200], requirements[:12000], responsibilities[:12000], description[:20000], skills)
