@@ -1,9 +1,9 @@
 """Versioned aliases and activity verbs, with no external dependencies."""
 
-EXPRESSION_RULES_VERSION = "expressions-1.0"
+EXPRESSION_RULES_VERSION = "expressions-1.1"
+CATALOG_VERSION = "professional-catalog-1.1"
 
-# Shared defaults for raw-text comparison. Parser's existing catalog remains
-# compatible; moving its import is a separate component integration change.
+# One source of defaults for TF-IDF and the integrated Parser.
 DEFAULT_SKILLS = (
     "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", ".NET", "SQL", "PostgreSQL", "MySQL",
     "MongoDB", "Neo4j", "Linux", "Windows Server", "Docker", "Kubernetes", "Git", "FastAPI", "Django",
@@ -12,6 +12,8 @@ DEFAULT_SKILLS = (
     "PowerShell", "Bash", "VMware", "VMware ESXi", "MS Exchange", "Active Directory", "TCP/IP", "DNS",
     "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch", "Excel", "Power BI", "Tableau",
     "Agile", "Scrum", "1C", "SAP", "English", "Ukrainian", "Russian",
+    "Hadoop", "Spark", "Flink", "Doris", "Kudu", "Iceberg", "Airflow", "DWH", "Data Lake",
+    "ETL", "ELT", "Kotlin", "NiFi", "ClickHouse", "Helm", "Prometheus", "Grafana", "IaC",
 )
 
 SKILL_ALIASES = {
@@ -32,6 +34,17 @@ SKILL_ALIASES = {
     "active directory": ("active-directory",),
     "windows server": ("windows-server",),
     "scikit-learn": ("scikit learn", "sklearn"),
+    "hadoop": ("apache hadoop",),
+    "spark": ("apache spark",),
+    "flink": ("apache flink",),
+    "doris": ("apache doris",),
+    "kudu": ("apache kudu",),
+    "iceberg": ("apache iceberg",),
+    "airflow": ("apache airflow",),
+    "nifi": ("apache nifi",),
+    "dwh": ("data warehouse", "data warehousing"),
+    "data lake": ("data-lake",),
+    "iac": ("infrastructure as code", "infrastructure-as-code"),
 }
 
 DISPLAY_NAMES = {
@@ -40,6 +53,9 @@ DISPLAY_NAMES = {
     "rest api": "REST API", "c++": "C++", "c#": "C#", "node.js": "Node.js", ".net": ".NET",
     "ci/cd": "CI/CD", "kubernetes": "Kubernetes", "active directory": "Active Directory",
     "windows server": "Windows Server", "scikit-learn": "scikit-learn",
+    "hadoop": "Hadoop", "spark": "Spark", "flink": "Flink", "doris": "Doris",
+    "kudu": "Kudu", "iceberg": "Iceberg", "airflow": "Airflow", "nifi": "NiFi",
+    "dwh": "DWH", "data lake": "Data Lake", "iac": "IaC",
 }
 
 # Each verb must immediately precede a known target (optionally through one
