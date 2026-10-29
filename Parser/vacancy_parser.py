@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 
 from pypdf import PdfReader
-from scorer.skill_matching import find_skill_mentions
+from Parser.vacancy_requirements import classify_vacancy_skills
 
 
 class VacancyParseError(ValueError):
@@ -33,6 +33,8 @@ class ParsedVacancy:
     responsibilities: str
     description: str
     required_skills: list[str]
+    preferred_skills: list[str] = field(default_factory=list)
+    parse_details: dict = field(default_factory=dict)
 
 
 EMAIL_URL = re.compile(r"(?:\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|https?://\S+|www\.\S+)", re.I)
@@ -44,6 +46,11 @@ COMPANY_LINE = re.compile(
 SECTION_ALIASES = {
     "requirements": (
         "требования", "мы ожидаем", "что нужно", "квалификация", "requirements", "what you need",
+        "обязательные требования", "обязательные навыки", "must have", "must-have", "required qualifications",
+    ),
+    "preferred": (
+        "будет плюсом", "будут плюсом", "будет преимуществом", "желательно",
+        "желательные навыки", "nice to have", "nice-to-have", "preferred qualifications", "optional",
     ),
     "responsibilities": (
         "обязанности", "задачи", "что делать", "responsibilities", "what you will do",
@@ -71,11 +78,12 @@ def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
     heading word do not accidentally switch sections. Stop headings discard
     their own content and following lines until another section starts.
     """
-    sections: dict[str, list[str]] = {"requirements": [], "responsibilities": [], "conditions": []}
+    sections: dict[str, list[str]] = {name: [] for name in SECTION_ALIASES if name != "stop"}
     active = ""
     for line in lines:
+        heading_line = re.sub(r"^[•*–—-]\s+", "", line)
         for name, pattern in HEADINGS.items():
-            heading = pattern.fullmatch(line)
+            heading = pattern.fullmatch(heading_line)
             if heading:
                 active = "" if name == "stop" else name
                 line = heading.group("content") or ""
@@ -122,8 +130,14 @@ def parse_vacancy_bytes(file_name: str, content: bytes) -> ParsedVacancy:
     sections = _extract_sections(lines)
     requirements = " ".join(sections["requirements"])
     responsibilities = " ".join(sections["responsibilities"])
-    description = " ".join(filter(None, (requirements, responsibilities, " ".join(sections["conditions"]))))
-    # Only explicit requirements supply mandatory skills. Keep their line
-    # boundaries so a negation on one line does not affect the next one.
-    skills = find_skill_mentions("\n".join(sections["requirements"]), SKILL_CATALOG)
-    return ParsedVacancy(title[:200], requirements[:12000], responsibilities[:12000], description[:20000], skills)
+    description = " ".join(filter(None, (
+        requirements, " ".join(sections["preferred"]), responsibilities, " ".join(sections["conditions"]),
+    )))
+    classification = classify_vacancy_skills(sections["requirements"], sections["preferred"], SKILL_CATALOG)
+    return ParsedVacancy(
+        title=title[:200], requirements=requirements[:12000], responsibilities=responsibilities[:12000],
+        description=description[:20000], required_skills=classification.required_skills,
+        preferred_skills=classification.preferred_skills,
+        parse_details={"parser_version": "vacancy-rules-1.0", "skill_evidence": classification.evidence,
+                       "warnings": classification.warnings},
+    )
