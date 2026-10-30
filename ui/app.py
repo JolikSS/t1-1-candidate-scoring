@@ -98,11 +98,12 @@ def main():
     if payload is not None:
         st.subheader(f"Кандидаты: {payload['vacancy_title']}")
         table = [{"№": index, "Кандидат": row["candidate"],
-                  "Покрытие навыков, %": row["score"], "TF-IDF сходство, %": row["text_similarity"],
-                  "E5, косинус": row.get("semantic_similarity"), "Общий ранг, RRF": row.get("hybrid_score"),
+                  "Покрытие навыков, %": row["score"], "TF-IDF, сходство (0–100)": row["text_similarity"],
                   "Совпало": ", ".join(row["matched_skills"]) or "—",
                   "Не найдено": ", ".join(row["missing_skills"]) or "—"}
                  for index, row in enumerate(payload["results"], 1)]
+        st.caption("Порядок: покрытие обязательных навыков, затем сходство TF-IDF. "
+                   "Сходство не является вероятностью пригодности кандидата.")
         st.dataframe(table, hide_index=True, use_container_width=True)
         show_errors(payload["errors"])
 

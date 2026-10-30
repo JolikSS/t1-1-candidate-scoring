@@ -19,27 +19,6 @@ def ensure_dependencies():
                        cwd=ROOT, check=True)
 
 
-def check_embeddings():
-    environment = os.environ.copy()
-    if environment.get("EMBEDDING_EXTRA_PATH"):
-        environment["PYTHONPATH"] = environment["EMBEDDING_EXTRA_PATH"]
-    python = environment.get("EMBEDDING_PYTHON", sys.executable)
-    if not Path(python).is_absolute() and ("/" in python or "\\" in python):
-        python = str(ROOT / python)
-    # Inspect installed distributions without loading Torch into RAM at each start.
-    check = ("import importlib.metadata as m; "
-             "assert m.version('sentence-transformers') == '6.1.0'; "
-             "[m.version(name) for name in ('torch', 'numpy', 'psutil')]")
-    result = subprocess.run([python, "-c", check],
-                            cwd=ROOT, env=environment, capture_output=True, timeout=120)
-    if result.returncode:
-        raise RuntimeError("Не готово окружение E5. Установите requirements-embeddings.txt "
-                           "в отдельное окружение и задайте EMBEDDING_PYTHON в .env.")
-    model = environment.get("E5_MODEL_PATH")
-    if model and not (ROOT / model).is_dir():
-        raise RuntimeError("Каталог модели E5_MODEL_PATH из .env не найден.")
-
-
 def main():
     preferred = Path(r"A:\CandidateScoringEnv\Scripts\python.exe")
     # Honor the interpreter selected in PyCharm; A: is only a system-Python fallback.
@@ -50,8 +29,6 @@ def main():
     print(f"Python: {sys.executable}", flush=True)
     ensure_dependencies()
     from tools.local_runtime import prepare, launch, stop, wait_http, OWNER
-    print("Проверяю окружение E5…", flush=True)
-    check_embeddings()
     print("Запускаю MongoDB и Neo4j…", flush=True)
     prepare()
     try:
