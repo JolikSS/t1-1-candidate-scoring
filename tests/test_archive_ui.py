@@ -1,19 +1,18 @@
 import hashlib
 import io
 import json
+import os
 import tempfile
 import unittest
 import zipfile
 from unittest.mock import patch
 import mongomock
-import numpy as np
 from fastapi import HTTPException, UploadFile
 from streamlit.testing.v1 import AppTest
 import api.main as api
 from db.mongo_store import MongoStore
 from scorer.benchmark import analyze_skills
-from scorer.fusion import reciprocal_rank_fusion
-from scorer.semantic_similarity import EmbeddingCache, chunks
+from scorer.ranking import RANKING_VERSION, rank_result_rows
 from scorer.text_similarity import calculate_corpus_similarities, TfidfVectorizer
 from Parser.resume_parser import parse_resume_bytes
 
@@ -30,7 +29,7 @@ class GraphDouble:
     def rank(self, run_id, vacancy, resumes, metrics):
         rows = [{**metric, **analyze_skills(resume["skills"], vacancy["required_skills"])}
                 for resume, metric in zip(resumes, metrics)]
-        return sorted(rows, key=lambda r: (-r["score"], -r["hybrid_score"], r["resume_id"]))
+        return rank_result_rows([{**row, "ranking_version": RANKING_VERSION} for row in rows])
 
 
 class ArchiveFlowTests(unittest.TestCase):
@@ -44,9 +43,8 @@ class ArchiveFlowTests(unittest.TestCase):
             context.start(); self.addCleanup(context.stop)
         context = patch.object(api, "_write_anonymized_exports")
         context.start(); self.addCleanup(context.stop)
-        context = patch.object(api, "calculate_semantic_similarities", side_effect=lambda r, v:
-            {"scores": [.8] * len(r), "cache_hits": 0, "cache_misses": len(r)})
-        self.semantic = context.start(); self.addCleanup(context.stop)
+        context = patch.object(api, "calculate_corpus_similarities", wraps=api.calculate_corpus_similarities)
+        self.lexical = context.start(); self.addCleanup(context.stop)
 
     def score(self, files=None, uploaded_only=False):
         return api.score_resumes(vacancy_title="Python", vacancy_description="Python Docker",
@@ -69,7 +67,7 @@ class ArchiveFlowTests(unittest.TestCase):
             result = self.score([archive({"resume.txt": content})], uploaded_only=True)
         self.assertEqual(result["results"][0]["resume_id"], "stable")
         self.assertEqual(result["results"][0]["score"], 50)
-        self.assertEqual(self.semantic.call_args.args[0][0]["skills"], ["Python"])
+        self.assertEqual(self.lexical.call_args.args[0][0]["skills"], ["Python"])
         self.assertEqual(len(self.db.list_resumes()), 1)
 
     def test_new_resume_saved_and_scored_without_reupload(self):
@@ -136,17 +134,7 @@ class ArchiveFlowTests(unittest.TestCase):
             self.assertEqual(post.call_args.kwargs["data"]["uploaded_only"], "false")
 
 
-class HybridTests(unittest.TestCase):
-    def test_e5_json_with_pycharm_terminal_reset(self):
-        from types import SimpleNamespace
-        from scorer.semantic_similarity import calculate_semantic_similarities
-        payload = {"scores": [.8], "cache_hits": 1, "cache_misses": 0}
-        for output in (json.dumps(payload), json.dumps(payload) + "\n\x1b[0m",
-                       "\x1b[32m" + json.dumps(payload) + "\x1b[0m"):
-            with self.subTest(output=output), patch("scorer.semantic_similarity.subprocess.run",
-                    return_value=SimpleNamespace(returncode=0, stdout=output)):
-                result = calculate_semantic_similarities([{"anonymized_text": "Python"}], {"title": "Python"})
-                self.assertEqual(result, payload)
+class PipelineTests(unittest.TestCase):
 
     def test_about_me_is_not_exported_as_professional_summary(self):
         text = "Experience\nBuilt Python APIs\nAbout me\nMy name is John Smith, married with two children."
@@ -162,11 +150,6 @@ class HybridTests(unittest.TestCase):
                 run_project.main()
         stop.assert_not_called()
 
-    def test_rrf_ties_missing_and_different_scales(self):
-        values = reciprocal_rank_fusion([100, 100, 0], [.8, .8, None])
-        self.assertEqual(values[0], values[1])
-        self.assertGreater(values[0], values[2])
-        self.assertAlmostEqual(values[0], 2 / 61)
 
     def test_tfidf_corpus_has_no_duplicate_current_documents(self):
         vacancy = {"title": "Python", "required_skills": ["Python"]}
@@ -195,7 +178,9 @@ class HybridTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state.json"
             state.write_text(json.dumps([{"role": "api", "owner": "new-owner"}]))
-            with patch.object(runtime, "STATE", state), patch.object(runtime.psutil, "Process") as process:
+            with patch.object(runtime, "STATE", state), \
+                 patch.dict(os.environ, {"CANDIDATE_RUNTIME_DIR": directory}), \
+                 patch.object(runtime.psutil, "Process") as process:
                 runtime.stop(owner="old-owner")
             process.assert_not_called()
             self.assertEqual(json.loads(state.read_text())[0]["owner"], "new-owner")
@@ -205,25 +190,3 @@ class HybridTests(unittest.TestCase):
         parsed = parse_resume_bytes("r.txt", text.encode(), ["Python", "Docker"])
         self.assertIn("3 years", parsed.professional_text)
         self.assertEqual(parsed.skills, ["Python", "Docker"])
-
-    def test_chunks_keep_end_and_cache_recovers_corruption(self):
-        class Tokenizer:
-            def encode(self, text, **kwargs):return text.split()
-            def decode(self, ids, **kwargs):return " ".join(ids)
-        parts = chunks("word " * 1200 + "END", Tokenizer(), "passage: ")
-        self.assertTrue(parts[-1].endswith("END"))
-        class Model:
-            calls = 0
-            def encode(self, texts, **kwargs):
-                self.calls += 1
-                result = np.zeros((len(texts), 768), dtype=np.float32)
-                result[:, 0] = 1
-                return result
-        with tempfile.TemporaryDirectory() as directory:
-            model = Model(); cache = EmbeddingCache(model, directory)
-            cache.encode(["query: Python"]); cache.encode(["query: Python"])
-            self.assertEqual(model.calls, 1)
-            from pathlib import Path
-            next(Path(directory).glob("*.npy")).write_bytes(b"broken")
-            cache.encode(["query: Python"])
-            self.assertEqual(model.calls, 2)
