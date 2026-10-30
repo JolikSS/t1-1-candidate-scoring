@@ -1,4 +1,4 @@
-"""Vocabulary and mathematical invariants, without databases or E5."""
+"""Vocabulary and mathematical invariants for corpus TF-IDF."""
 
 import math
 import unittest
