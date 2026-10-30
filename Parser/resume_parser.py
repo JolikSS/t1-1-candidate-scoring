@@ -10,6 +10,9 @@ from io import BytesIO
 from pathlib import Path
 
 from scorer.skill_matching import find_skill_mentions
+from Parser.document_structure import compile_headings, match_heading, normalize_line, select_job_title, title_candidate
+from Parser.document_structure import clean_export_text
+from scorer.expression_catalog import DEFAULT_SKILLS
 
 
 class ResumeParseError(ValueError):
@@ -111,21 +114,28 @@ def _legacy_sections(text: str) -> dict[str, list[str]]:
     return result
 
 
-PARSER_VERSION = "rules-2.1"
+PARSER_VERSION = "rules-2.3"
 EXTRA_ALIASES = {
-    "title": {"desired position", "desired role", "job title", "должность"},
+    "title": {"desired position", "desired role", "job title", "должность", "желаемая должность и зарплата"},
     "summary": {"summary", "professional summary", "profile", "профессиональное резюме"},
-    "experience": {"career history", "employment", "трудовая деятельность"},
+    "experience": {"career history", "employment", "трудовая деятельность", "обязанности и достижения"},
     "projects": {"projects", "project experience", "проекты", "проектный опыт"},
     "achievements": {"achievements", "accomplishments", "достижения"},
     "certifications": {"certifications", "certificates", "сертификаты", "сертификации"},
     "courses": {"courses", "training", "курсы", "повышение квалификации"},
-    "education": {"academic background", "обучение"},
+    "education": {
+        "academic background", "обучение", "образование и обучение",
+        "образование и самообучение", "education and training",
+    },
     "skills": {"technical skills", "core competencies", "технические навыки", "компетенции"},
 }
 ALIASES = {key: SECTION_ALIASES.get(key, set()) | EXTRA_ALIASES.get(key, set())
            for key in dict.fromkeys([*SECTION_ALIASES, *EXTRA_ALIASES])}
-HEADINGS = sorted(((alias, key) for key, aliases in ALIASES.items() for alias in aliases), key=lambda x: -len(x[0]))
+HEADINGS = compile_headings(ALIASES, {
+    "experience": (
+        r"опыт работы\s+(?:более\s+)?\d+\s+(?:лет|года?|месяц(?:а|ев)?)(?:\s+(?:и\s+)?\d+\s+месяц(?:а|ев)?)?",
+    ),
+})
 STOP_HEADING = re.compile(r"^(?:about me|о себе|обо мне|личная информация|контакты|требования|условия|personal information|personal details|contact details|contact information|references|recommendations|дополнительная информация)(?:\s*[:：].*)?\s*$", re.I)
 MONTH = r"(?:январ[ьяь]|феврал[ьяь]|март[а]?|апрел[ьяь]|ма[йя]|июн[ьяь]|июл[ьяь]|август[а]?|сентябр[ьяь]|октябр[ьяь]|ноябр[ьяь]|декабр[ьяь]|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 DATE_POINT = rf"(?:(?:\d{{1,2}}[./])?\d{{4}}|{MONTH}\s+\d{{4}})"
@@ -133,7 +143,10 @@ DATE_RANGE = re.compile(rf"\b{DATE_POINT}\s*(?:[-–—]|to|по)\s*(?:{DATE_POI
 
 
 def clean_professional_line(line: str, catalog: list[str] | None = None, *, explicit_role=False) -> str:
-    if PII_LINE.search(line) or PERSONAL_FIELD.match(line) or (PERSON_NAME.fullmatch(line.strip()) and not explicit_role and not find_skill_mentions(line, catalog or [])):
+    if PII_LINE.search(line) or PERSONAL_FIELD.match(line) or (
+        PERSON_NAME.fullmatch(line.strip()) and not explicit_role
+        and not title_candidate(line) and not find_skill_mentions(line, catalog or [])
+    ):
         return ""
     # Protect explicit employment ranges from the broad phone-number pattern.
     dates = []
@@ -151,27 +164,34 @@ def _structured_sections(text: str, catalog: list[str]) -> dict:
     active = ""
     ignored = 0
     headings = 0
-    warnings = []
-    for raw in text.replace("\x00", "").splitlines():
-        line = re.sub(r"[ \t]+", " ", raw).strip()
+    title, title_details, warnings = select_job_title(
+        text.splitlines(), HEADINGS,
+        boundaries=set(HEADINGS) - {"title", "skills", "summary"},
+        known_terms=catalog,
+    )
+    for line_number, raw in enumerate(text.replace("\x00", "").splitlines(), 1):
+        line = normalize_line(raw)
         if not line:
             if active and sections[active] and sections[active][-1] != "":
                 sections[active].append("")
             continue
+        if line_number == title_details.get("line_number") and active in {"skills", "summary"}:
+            # Some exports place a summary/skills block before the desired
+            # role. Employment preferences following that role are header data.
+            active = ""
+            continue
         if STOP_HEADING.fullmatch(line):
             active = ""
             continue
-        heading = next(((alias, key) for alias, key in HEADINGS
-                        if line.casefold() == alias or re.match(r"^"+re.escape(alias)+
-                           r"(?:\s*[:：—–-]|\s+)", line, re.I)), None)
-        if heading and heading[1] == "title" and active == "experience":
+        heading = match_heading(line, HEADINGS)
+        if heading and heading.section == "title" and active == "experience":
             heading = None
-        if heading and heading[0] == "обязанности" and active == "experience":
+        if heading and heading.label in {"обязанности", "обязанности и достижения"} and active == "experience":
             heading = None
         if heading:
-            alias, active = heading
+            active = "" if heading.section == "title" else heading.section
             headings += 1
-            line = line[len(alias):].lstrip(" :：—–-")
+            line = heading.content
             if not line:
                 continue
         elif PERSONAL_SECTION.fullmatch(line):
@@ -184,8 +204,11 @@ def _structured_sections(text: str, catalog: list[str]) -> dict:
         if safe:
             sections[active].append(safe)
     sections = {key: "\n".join(lines).strip() for key, lines in sections.items()}
-    for key in ("title", "experience", "education"):
+    sections["title"] = title
+    for key in ("experience", "education"):
         if not sections[key]: warnings.append("missing_"+key)
+    if title and not any(value for key, value in sections.items() if key != "title"):
+        warnings.append("title_only_professional_text")
     if ignored: warnings.append("unclassified_lines")
     if not headings: warnings.append("no_recognized_sections")
     if "\t" in text or any(len(line) > 500 for line in text.splitlines()):
@@ -212,7 +235,7 @@ def _structured_sections(text: str, catalog: list[str]) -> dict:
                 for key, value in sections.items() for line in value.splitlines()
                 for skill in find_skill_mentions(line, catalog)]
     catalog_hash = hashlib.sha256(json.dumps(sorted(set(catalog)), ensure_ascii=False).encode()).hexdigest()
-    return {"parser_version": PARSER_VERSION, "catalog_version": catalog_hash,
+    return {"parser_version": PARSER_VERSION, "catalog_version": catalog_hash, "title_selection": title_details,
             "sections": sections, "experience_entries": entries, "skill_evidence": evidence,
             "warnings": sorted(set(warnings)), "source_mode": "original"}
 
@@ -233,16 +256,14 @@ def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> 
     if not raw_text.strip():
         raise ResumeParseError("В документе нет текстового слоя; сканированные PDF без OCR не поддерживаются.")
 
-    details = _structured_sections(raw_text, skill_catalog or [])
+    catalog = list(DEFAULT_SKILLS) if skill_catalog is None else skill_catalog
+    details = _structured_sections(clean_export_text(raw_text), catalog)
     extracted = details["sections"]
     experience = extracted["experience"]
     education = extracted["education"]
     title = extracted["title"]
-    if len([line for line in title.splitlines() if line.strip()]) > 1:
-        details["warnings"].append("ambiguous_title")
-        title = ""
     professional = "\n\n".join(value for value in extracted.values() if value)
-    skills = find_skill_mentions(professional, skill_catalog or [])
+    skills = find_skill_mentions(professional, catalog)
     # Raw input is intentionally not returned: it may contain personal data.
     return ParsedResume("", None, professional, professional, skills,
                         experience, education, title, details)
