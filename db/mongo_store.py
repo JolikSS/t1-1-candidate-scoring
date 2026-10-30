@@ -66,10 +66,15 @@ class MongoStore:
                 self.db.resumes.update_one({"resume_id": resume["resume_id"]}, {"$set": {"skills": skills}})
 
     def save_scoring_run(self, vacancy_id: str, results: list[dict[str, Any]], run_id: str | None = None) -> None:
+        from scorer.ranking import RANKING_VERSION, public_result
         self.db.scoring_runs.insert_one({"vacancy_id": vacancy_id, "created_at": datetime.now(timezone.utc),
-                                         "results": results, "graph_run_id": run_id})
+                                         "results": [public_result(row, default_version=RANKING_VERSION) for row in results],
+                                         "graph_run_id": run_id, "ranking_version": RANKING_VERSION})
 
     def list_results(self, vacancy_id: str) -> list[dict[str, Any]]:
         runs = self.db.scoring_runs.find({"vacancy_id": vacancy_id}, {"_id": 0}).sort("created_at", -1).limit(1)
         latest = next(iter(runs), None)
-        return latest["results"] if latest else []
+        from scorer.ranking import public_result
+        if not latest:
+            return []
+        return [public_result(row, default_version=latest.get("ranking_version", "legacy")) for row in latest["results"]]
