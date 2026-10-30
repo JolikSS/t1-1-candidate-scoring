@@ -22,8 +22,7 @@ from db.data_paths import data_root
 from Parser.resume_parser import ResumeParseError, parse_resume_bytes
 from Parser.vacancy_parser import SKILL_CATALOG, VacancyParseError, parse_vacancy_bytes
 from db.graph_store import GraphStore
-from scorer.fusion import reciprocal_rank_fusion
-from scorer.semantic_similarity import calculate_semantic_similarities
+from scorer.ranking import RANKING_VERSION, build_candidate_metrics
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -73,16 +72,17 @@ async def lifespan(_: FastAPI):
             store = None
 
 
-app = FastAPI(title="Candidate Scoring API", version="2.0.0",
+app = FastAPI(title="Candidate Scoring API", version="3.0.0",
               description="Обезличенный скоринг резюме, MongoDB и корпусный TF-IDF.", lifespan=lifespan)
 
 
 def _write_anonymized_exports(db: MongoStore) -> None:
     export_dir = data_root() / "parsed_json"
     export_dir.mkdir(parents=True, exist_ok=True)
-    allowed_resume_fields = ("resume_id", "title", "experience", "education", "skills", "anonymized_text")
+    allowed_resume_fields = ("resume_id", "title", "experience", "education", "skills", "anonymized_text", "parse_details")
     resumes = [{key: doc.get(key) for key in allowed_resume_fields} for doc in db.list_resumes()]
-    vacancies = [{key: doc.get(key) for key in ("id", "title", "required_skills", "description", "requirements", "responsibilities")}
+    vacancies = [{**{key: doc.get(key) for key in ("id", "title", "required_skills", "description", "requirements", "responsibilities")},
+                  "preferred_skills": doc.get("preferred_skills") or [], "parse_details": doc.get("parse_details") or {}}
                  for doc in db.list_vacancies()]
     (export_dir / "resumes.json").write_text(json.dumps(resumes, ensure_ascii=False, indent=2), encoding="utf-8")
     (export_dir / "vacancies.json").write_text(json.dumps(vacancies, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -217,7 +217,8 @@ def upload_vacancies(files: list[UploadFile] = File(...)) -> dict[str, Any]:
             continue
         vacancy_id = f"vac-{hashlib.sha256(content).hexdigest()[:20]}"
         db.upsert_vacancy(vacancy_id, parsed.title, parsed.required_skills, parsed.description,
-                          {"requirements": parsed.requirements, "responsibilities": parsed.responsibilities})
+                          {"requirements": parsed.requirements, "responsibilities": parsed.responsibilities,
+                           "preferred_skills": parsed.preferred_skills, "parse_details": parsed.parse_details})
         vacancies[vacancy_id] = db.get_vacancy(vacancy_id)
     if vacancies:
         _write_anonymized_exports(db)
@@ -254,7 +255,9 @@ def score_resumes(
         _write_anonymized_exports(db)
         uploaded, errors = _unpack(files)
         catalog = list(dict.fromkeys([*SKILL_CATALOG, *required,
-                                      *(skill for v in db.list_vacancies() for skill in v.get("required_skills", []))]))
+                                      *(skill for v in db.list_vacancies()
+                                        for field in ("required_skills", "preferred_skills")
+                                        for skill in v.get(field, []) or [])]))
         batch: list[dict[str, Any]] = []
         for kind, content in uploaded:
             digest = hashlib.sha256(content).hexdigest()
@@ -279,7 +282,7 @@ def score_resumes(
         if batch:
             _write_anonymized_exports(db)
 
-        # Both methods consume persisted MongoDB fields, never transient parser output.
+        # Compare persisted MongoDB fields, never transient parser output.
         db.refresh_skills(catalog)
         corpus_resumes = [r for r in db.list_resumes() if not r.get("hidden") and r.get("anonymized_text", "").strip()]
         candidates = corpus_resumes
@@ -289,25 +292,19 @@ def score_resumes(
         if not candidates:
             detail = "В загруженном архиве нет читаемых резюме." if uploaded_only else "В MongoDB ещё нет резюме."
             raise HTTPException(status_code=422, detail={"message": detail, "errors": errors})
-        similarities = calculate_corpus_similarities(candidates, vacancy, corpus_resumes, db.list_vacancies())
         try:
-            semantic = calculate_semantic_similarities(candidates, vacancy)
-            hybrid = reciprocal_rank_fusion(similarities, semantic["scores"])
-            metrics = [{"candidate": f"Кандидат {resume['resume_id'][-6:]}", "resume_id": resume["resume_id"],
-                        "file_number": index, "file_type": resume.get("file_type", "pdf"),
-                        "text_similarity": lexical, "semantic_similarity": dense, "hybrid_score": fused}
-                       for index, (resume, lexical, dense, fused) in enumerate(
-                           zip(candidates, similarities, semantic["scores"], hybrid), 1)]
+            similarities = calculate_corpus_similarities(candidates, vacancy, corpus_resumes, db.list_vacancies())
+            metrics = build_candidate_metrics(candidates, similarities)
             run_id = str(uuid.uuid4())
             results = graph_db.rank(run_id, vacancy, candidates, metrics)
         except Exception as exc:
-            LOGGER.error("Hybrid scoring failed: %s", type(exc).__name__)
-            raise HTTPException(status_code=503, detail="Не удалось рассчитать E5 или получить рейтинг из Neo4j.") from exc
+            LOGGER.error("Scoring failed: %s", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Не удалось рассчитать TF-IDF или получить рейтинг из Neo4j.") from exc
         if len(results) != len(candidates):
             raise HTTPException(status_code=503, detail="Neo4j вернула неполный рейтинг.")
         db.save_scoring_run(resolved_id, results, run_id=run_id)
         return {"vacancy_id": resolved_id, "vacancy_title": vacancy["title"], "run_id": run_id, "results": results,
-                "errors": errors, "resume_count": len(candidates), "embedding_cache": {"hits": semantic["cache_hits"], "misses": semantic["cache_misses"]}}
+                "errors": errors, "resume_count": len(candidates), "ranking_version": RANKING_VERSION}
     except PyMongoError as exc:
         LOGGER.exception("MongoDB error")
         raise HTTPException(status_code=503, detail="Ошибка записи или чтения MongoDB.") from exc

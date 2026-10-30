@@ -1,4 +1,4 @@
-# Application and launcher. E5 has its own environment (requirements-embeddings.txt).
+# Application, launcher and TF-IDF scoring.
 pypdf>=5.0,<7.0
 streamlit>=1.41,<1.50
 fastapi>=0.115,<0.129
