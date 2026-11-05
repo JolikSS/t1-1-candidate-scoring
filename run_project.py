@@ -1,22 +1,38 @@
 """Run databases, preload, API and UI from PyCharm."""
-from pathlib import Path
+
 import importlib.util
 import os
 import subprocess
 import sys
 import time
 import webbrowser
+from pathlib import Path
+
 ROOT = Path(__file__).resolve().parent
 
 
 def ensure_dependencies():
-    modules = ("fastapi", "pydantic", "pymongo", "neo4j", "pypdf", "streamlit",
-               "requests", "sklearn", "numpy", "uvicorn", "dotenv", "psutil", "python_multipart")
+    modules = (
+        "fastapi",
+        "pydantic",
+        "pymongo",
+        "neo4j",
+        "pypdf",
+        "streamlit",
+        "requests",
+        "sklearn",
+        "numpy",
+        "uvicorn",
+        "dotenv",
+        "psutil",
+        "python_multipart",
+    )
     missing = [name for name in modules if importlib.util.find_spec(name) is None]
     if missing:
         print("Устанавливаю зависимости приложения: " + ", ".join(missing), flush=True)
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")],
-                       cwd=ROOT, check=True)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")], cwd=ROOT, check=True
+        )
 
 
 def main():
@@ -28,8 +44,9 @@ def main():
         raise RuntimeError("Нужен Python 3.10 или новее. Выберите его в настройках проекта PyCharm.")
     print(f"Python: {sys.executable}", flush=True)
     ensure_dependencies()
-    from tools.local_runtime import prepare, launch, stop, wait_http, OWNER
-    print("Запускаю MongoDB и Neo4j…", flush=True)
+    from tools.local_runtime import OWNER, launch, prepare, stop, wait_http
+
+    print("Запускаю настроенные базы данных…", flush=True)
     prepare()
     try:
         print("Проверяю предзагруженные документы…", flush=True)
@@ -38,7 +55,22 @@ def main():
         api = launch("api", [sys.executable, "-m", "uvicorn", "api.main:app", "--host", "127.0.0.1", "--port", "8000"])
         wait_http("http://127.0.0.1:8000/health")
         print("Запускаю интерфейс…", flush=True)
-        ui = launch("ui", [sys.executable, "-m", "streamlit", "run", "ui/app.py", "--server.address", "127.0.0.1", "--server.port", "8501", "--server.headless", "true"])
+        ui = launch(
+            "ui",
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                "ui/app.py",
+                "--server.address",
+                "127.0.0.1",
+                "--server.port",
+                "8501",
+                "--server.headless",
+                "true",
+            ],
+        )
         wait_http("http://127.0.0.1:8501/_stcore/health")
         print("Готово: http://127.0.0.1:8501. Остановка — Run stop_project.py.", flush=True)
         webbrowser.open("http://127.0.0.1:8501")
@@ -47,6 +79,7 @@ def main():
         return 1
     finally:
         stop(owner=OWNER)
+
 
 if __name__ == "__main__":
     try:

@@ -1,10 +1,14 @@
 """Materialize each run atomically, then rank using skill paths in Neo4j."""
-from __future__ import annotations
-import os
-from neo4j import GraphDatabase
-from scorer.skill_matching import canonical_skill_key
-from scorer.ranking import RANKING_VERSION
 
+from __future__ import annotations
+
+import json
+import os
+
+from neo4j import GraphDatabase
+
+from scorer.ranking import RANKING_VERSION
+from scorer.skill_matching import canonical_skill_key
 
 RESULT_QUERY = """
     MATCH (run:ScoringRun {id:$run_id})-[e:EVALUATES]->(resume:Resume)
@@ -24,18 +28,22 @@ RESULT_QUERY = """
     ORDER BY score DESC,coalesce(text_similarity,-1.0) DESC,resume_id
 """
 
+
 class GraphStore:
     def __init__(self):
-        self.driver = GraphDatabase.driver(os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
+        self.driver = GraphDatabase.driver(
+            os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
             auth=(os.getenv("NEO4J_USER", "neo4j"), os.environ["NEO4J_PASSWORD"]),
-            connection_timeout=5)
+            connection_timeout=5,
+        )
 
     def verify_and_prepare(self):
         self.driver.verify_connectivity()
         with self.driver.session() as session:
             for label in ("Vacancy", "Resume", "Skill", "ScoringRun", "SkillSnapshot"):
-                session.run(f"CREATE CONSTRAINT {label.lower()}_id_unique IF NOT EXISTS "
-                            f"FOR (n:{label}) REQUIRE n.id IS UNIQUE").consume()
+                session.run(
+                    f"CREATE CONSTRAINT {label.lower()}_id_unique IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE"
+                ).consume()
 
     def close(self):
         self.driver.close()
@@ -46,47 +54,127 @@ class GraphStore:
         if any(resume["resume_id"] != metric["resume_id"] for resume, metric in zip(resumes, metrics)):
             raise ValueError("Graph candidate and metric IDs do not match.")
         required = [{"id": canonical_skill_key(s), "name": s} for s in vacancy["required_skills"]]
-        rows = [{**metric, "skills": list(dict.fromkeys(canonical_skill_key(s) for s in resume.get("skills", [])))}
-                for resume, metric in zip(resumes, metrics)]
+        rows = [
+            {**metric, "skills": list(dict.fromkeys(canonical_skill_key(s) for s in resume.get("skills", [])))}
+            for resume, metric in zip(resumes, metrics)
+        ]
+
         def materialize(tx):
-            tx.run("MERGE (v:Vacancy {id:$vacancy_id}) SET v.title=$title "
-                   "MERGE (run:ScoringRun {id:$run_id}) SET run.ranking_version=$ranking_version "
-                   "MERGE (run)-[:FOR_VACANCY]->(v)",
-                   vacancy_id=vacancy["id"], title=vacancy["title"], run_id=run_id,
-                   ranking_version=RANKING_VERSION).consume()
+            tx.run(
+                "MERGE (v:Vacancy {id:$vacancy_id}) SET v.title=$title "
+                "MERGE (run:ScoringRun {id:$run_id}) SET run.ranking_version=$ranking_version "
+                "MERGE (run)-[:FOR_VACANCY]->(v)",
+                vacancy_id=vacancy["id"],
+                title=vacancy["title"],
+                run_id=run_id,
+                ranking_version=RANKING_VERSION,
+            ).consume()
             # Requirements are run-scoped so later vacancy edits cannot alter history.
-            tx.run("MATCH (run:ScoringRun {id:$run_id}) "
-                   "UNWIND $skills AS skill MERGE (s:Skill {id:skill.id}) "
-                   "MERGE (run)-[r:REQUIRES]->(s) SET r.name=skill.name",
-                   run_id=run_id, skills=required).consume()
-            tx.run("MATCH (run:ScoringRun {id:$run_id}) UNWIND $rows AS row "
-                   "MERGE (resume:Resume {id:row.resume_id}) "
-                   "MERGE (run)-[e:EVALUATES]->(resume) "
-                   "SET e += row{.candidate,.file_type,.file_number,.text_similarity} "
-                   "FOREACH (skill IN row.skills | MERGE (s:Skill {id:skill}) "
-                   "MERGE (resume)-[:HAS_SKILL]->(s))",
-                   run_id=run_id, rows=rows).consume()
-            tx.run("UNWIND $rows AS row MATCH (resume:Resume {id:row.resume_id}) "
-                   "OPTIONAL MATCH (resume)-[old:HAS_SKILL]->(skill:Skill) "
-                   "WHERE NOT skill.id IN row.skills DELETE old", rows=rows).consume()
+            tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) "
+                "UNWIND $skills AS skill MERGE (s:Skill {id:skill.id}) "
+                "MERGE (run)-[r:REQUIRES]->(s) SET r.name=skill.name",
+                run_id=run_id,
+                skills=required,
+            ).consume()
+            tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) UNWIND $rows AS row "
+                "MERGE (resume:Resume {id:row.resume_id}) "
+                "MERGE (run)-[e:EVALUATES]->(resume) "
+                "SET e += row{.candidate,.file_type,.file_number,.text_similarity} "
+                "FOREACH (skill IN row.skills | MERGE (s:Skill {id:skill}) "
+                "MERGE (resume)-[:HAS_SKILL]->(s))",
+                run_id=run_id,
+                rows=rows,
+            ).consume()
+            tx.run(
+                "UNWIND $rows AS row MATCH (resume:Resume {id:row.resume_id}) "
+                "OPTIONAL MATCH (resume)-[old:HAS_SKILL]->(skill:Skill) "
+                "WHERE NOT skill.id IN row.skills DELETE old",
+                rows=rows,
+            ).consume()
             # Snapshot observed skills per evaluation, retaining history on reparse.
-            tx.run("MATCH (run:ScoringRun {id:$run_id}) UNWIND $rows AS row "
-                   "MATCH (resume:Resume {id:row.resume_id}) "
-                   "MERGE (observation:SkillSnapshot {id:$run_id + ':' + row.resume_id}) "
-                   "MERGE (run)-[:OBSERVED]->(observation) MERGE (observation)-[:OF_RESUME]->(resume) FOREACH (key IN row.skills | MERGE (s:Skill {id:key}) MERGE (observation)-[:HAS_SKILL]->(s))",
-                   run_id=run_id, rows=rows).consume()
+            tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) UNWIND $rows AS row "
+                "MATCH (resume:Resume {id:row.resume_id}) "
+                "MERGE (observation:SkillSnapshot {id:$run_id + ':' + row.resume_id}) "
+                "MERGE (run)-[:OBSERVED]->(observation) MERGE (observation)-[:OF_RESUME]->(resume) FOREACH (key IN row.skills | MERGE (s:Skill {id:key}) MERGE (observation)-[:HAS_SKILL]->(s))",
+                run_id=run_id,
+                rows=rows,
+            ).consume()
             return [record.data() for record in tx.run(RESULT_QUERY, run_id=run_id)]
+
         with self.driver.session() as session:
             return session.execute_write(materialize)
 
     def list_results(self, run_id):
         def read(tx):
-            record = tx.run("MATCH (run:ScoringRun {id:$run_id}) RETURN run.ranking_version AS version",
-                            run_id=run_id).single()
+            record = tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) RETURN run.ranking_version AS version, run.results_json AS results_json",
+                run_id=run_id,
+            ).single()
             if record is None:
                 return []
+            from scorer.weighted_ranking import WEIGHTED_RANKING_VERSION
+
+            if record["version"] == WEIGHTED_RANKING_VERSION:
+                return json.loads(record["results_json"])
             if record["version"] != RANKING_VERSION:
                 raise ValueError("Historical graph run uses another ranking version; request a new calculation.")
             return [row.data() for row in tx.run(RESULT_QUERY, run_id=run_id)]
+
         with self.driver.session() as session:
             return session.execute_read(read)
+
+    def record_run(self, run, vacancy, resumes):
+        """Best-effort materialization of an authoritative MongoDB weighted run."""
+        observed = {r["resume_id"]: r.get("skills", []) for r in resumes}
+        rows = [
+            {
+                "resume_id": row["resume_id"],
+                "score": row["score"],
+                "skills": [canonical_skill_key(skill) for skill in observed[row["resume_id"]]],
+            }
+            for row in run["results"]
+        ]
+
+        def write(tx):
+            tx.run(
+                "MERGE (v:Vacancy {id:$vacancy_id}) SET v.title=$title "
+                "MERGE (run:ScoringRun {id:$run_id}) "
+                "SET run.ranking_version=$version, run.results_json=$results "
+                "MERGE (run)-[:FOR_VACANCY]->(v)",
+                vacancy_id=run["vacancy_id"],
+                title=run["vacancy_title"],
+                run_id=run["run_id"],
+                version=run["ranking_version"],
+                results=json.dumps(run["results"], ensure_ascii=False),
+            ).consume()
+            tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) UNWIND $skills AS skill "
+                "MERGE (s:Skill {id:skill.id}) MERGE (run)-[r:REQUIRES]->(s) "
+                "SET r.name=skill.name, r.critical=skill.critical",
+                run_id=run["run_id"],
+                skills=[
+                    {
+                        "id": canonical_skill_key(s),
+                        "name": s,
+                        "critical": canonical_skill_key(s)
+                        in {canonical_skill_key(c) for c in vacancy.get("critical_skills", [])},
+                    }
+                    for s in vacancy["required_skills"]
+                ],
+            ).consume()
+            tx.run(
+                "MATCH (run:ScoringRun {id:$run_id}) UNWIND $rows AS row "
+                "MERGE (resume:Resume {id:row.resume_id}) "
+                "MERGE (run)-[e:EVALUATES]->(resume) SET e.score=row.score "
+                "MERGE (snapshot:SkillSnapshot {id:$run_id + ':' + row.resume_id}) "
+                "MERGE (run)-[:OBSERVED]->(snapshot) MERGE (snapshot)-[:OF_RESUME]->(resume) "
+                "FOREACH (key IN row.skills | MERGE (s:Skill {id:key}) MERGE (snapshot)-[:HAS_SKILL]->(s))",
+                run_id=run["run_id"],
+                rows=rows,
+            ).consume()
+
+        with self.driver.session() as session:
+            session.execute_write(write)

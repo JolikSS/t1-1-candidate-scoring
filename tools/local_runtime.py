@@ -1,5 +1,6 @@
 """Start configured native databases or Docker; track only owned processes."""
-from pathlib import Path
+
+import hashlib
 import json
 import os
 import shutil
@@ -8,11 +9,13 @@ import subprocess
 import time
 import urllib.request
 import uuid
-import hashlib
 from contextlib import contextmanager
+from pathlib import Path
 
 import psutil
 from dotenv import load_dotenv
+
+from api.config import get_settings
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".runtime.json"
@@ -33,12 +36,21 @@ def lifecycle_lock():
         lock.seek(0)
         if os.name == "nt":
             import msvcrt
-            acquire = lambda: msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
-            release = lambda: msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+
+            def acquire():
+                return msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+
+            def release():
+                return msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
         else:
             import fcntl
-            acquire = lambda: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            release = lambda: fcntl.flock(lock, fcntl.LOCK_UN)
+
+            def acquire():
+                return fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+            def release():
+                return fcntl.flock(lock, fcntl.LOCK_UN)
+
         deadline = time.monotonic() + 180
         while True:
             try:
@@ -47,7 +59,7 @@ def lifecycle_lock():
             except OSError:
                 if time.monotonic() >= deadline:
                     raise RuntimeError("Другой процесс ещё запускает или останавливает проект.")
-                time.sleep(.1)
+                time.sleep(0.1)
         try:
             yield
         finally:
@@ -66,17 +78,25 @@ def _launch(role, args, environment=None):
     log_dir = Path(os.getenv("CANDIDATE_RUNTIME_DIR", str(Path.home() / ".candidate-scoring"))) / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     with (log_dir / (role + ".log")).open("ab") as log:
-        process = subprocess.Popen(args, cwd=ROOT, env=environment, stdout=log, stderr=log,
-                                   creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        process = subprocess.Popen(
+            args,
+            cwd=ROOT,
+            env=environment,
+            stdout=log,
+            stderr=log,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
     records = json.loads(STATE.read_text()) if STATE.exists() else []
-    records.append({"role": role, "pid": process.pid, "created": psutil.Process(process.pid).create_time(), "owner": OWNER})
+    records.append(
+        {"role": role, "pid": process.pid, "created": psutil.Process(process.pid).create_time(), "owner": OWNER}
+    )
     STATE.write_text(json.dumps(records))
     return process
 
 
 def port_open(port):
     with socket.socket() as connection:
-        connection.settimeout(.5)
+        connection.settimeout(0.5)
         return connection.connect_ex(("127.0.0.1", port)) == 0
 
 
@@ -114,13 +134,16 @@ def _prepare():
             if record["role"] == "docker":
                 raise RuntimeError("Already running; use stop_project.py first")
             try:
-                if abs(psutil.Process(record["pid"]).create_time() - record["created"]) < .1:
+                if abs(psutil.Process(record["pid"]).create_time() - record["created"]) < 0.1:
                     raise RuntimeError("Already running; use stop_project.py first")
             except psutil.NoSuchProcess:
                 pass
         STATE.unlink()
-    STATE.write_text(json.dumps([{"role": "launcher", "pid": os.getpid(),
-                                  "created": psutil.Process().create_time(), "owner": OWNER}]))
+    STATE.write_text(
+        json.dumps(
+            [{"role": "launcher", "pid": os.getpid(), "created": psutil.Process().create_time(), "owner": OWNER}]
+        )
+    )
     try:
         _start_databases()
     except BaseException:
@@ -130,27 +153,40 @@ def _prepare():
 
 def _start_databases():
     mongo, neo = os.getenv("MONGODB_BIN"), os.getenv("NEO4J_HOME")
-    if mongo and neo:
+    graph_enabled = get_settings().neo4j_enabled
+    if mongo and (neo or not graph_enabled):
         runtime = Path(os.getenv("CANDIDATE_RUNTIME_DIR", str(Path.home() / ".candidate-scoring")))
         if not port_open(27017):
             data = Path(os.getenv("MONGODB_DATA_DIR", str(runtime / "mongo-data")))
             data.mkdir(parents=True, exist_ok=True)
             _launch("mongo", [mongo, "--dbpath", str(data), "--bind_ip", "127.0.0.1", "--port", "27017"])
             wait_port(27017)
-        if not port_open(7687):
-            _launch("neo4j", ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                              str(Path(neo) / "bin" / "neo4j.ps1"), "console"])
+        if graph_enabled and not port_open(7687):
+            _launch(
+                "neo4j",
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(Path(neo) / "bin" / "neo4j.ps1"),
+                    "console",
+                ],
+            )
             wait_port(7687)
     else:
         docker = shutil.which("docker")
         if not docker:
-            raise RuntimeError("Configure native MongoDB/Neo4j in .env or install Docker")
-        subprocess.run([docker, "compose", "up", "-d", "mongo", "neo4j"], cwd=ROOT, check=True)
+            raise RuntimeError("Configure native MongoDB in .env or install Docker")
+        services = ["mongo", "neo4j"] if graph_enabled else ["mongo"]
+        subprocess.run([docker, "compose", "up", "-d", *services], cwd=ROOT, check=True)
         records = json.loads(STATE.read_text())
-        records.append({"role": "docker", "owner": OWNER})
+        records.append({"role": "docker", "owner": OWNER, "services": services})
         STATE.write_text(json.dumps(records))
         wait_port(27017)
-        wait_port(7687)
+        if graph_enabled:
+            wait_port(7687)
 
 
 def stop(owner=None):
@@ -169,15 +205,18 @@ def _stop(owner=None):
             # Never kill the caller while it is performing its own cleanup.
             continue
         if record["role"] == "docker":
-            subprocess.run(["docker", "compose", "stop", "mongo", "neo4j"], cwd=ROOT, check=True)
+            subprocess.run(
+                ["docker", "compose", "stop", *record.get("services", ["mongo", "neo4j"])], cwd=ROOT, check=True
+            )
             continue
         try:
             process = psutil.Process(record["pid"])
-            if abs(process.create_time() - record["created"]) > .1:
+            if abs(process.create_time() - record["created"]) > 0.1:
                 continue
             if record["role"] == "mongo":
                 from pymongo import MongoClient
                 from pymongo.errors import AutoReconnect
+
                 try:
                     with MongoClient(os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017")) as client:
                         client.admin.command("shutdown", force=False)
