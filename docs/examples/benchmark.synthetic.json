@@ -1,0 +1,34 @@
+{
+  "schema_version": "candidate-benchmark-v1",
+  "source": "synthetic",
+  "vacancies": [
+    {
+      "id": "backend-validation",
+      "domain": "backend",
+      "title": "Python developer",
+      "required_skills": ["Python", "FastAPI"],
+      "critical_skills": ["Python"],
+      "description": "Develop REST API services"
+    },
+    {
+      "id": "accounting-test",
+      "domain": "accounting",
+      "title": "Accountant",
+      "required_skills": ["IFRS", "financial reporting"],
+      "critical_skills": ["IFRS"],
+      "description": "Prepare financial statements"
+    }
+  ],
+  "resumes": [
+    {"resume_id": "validation-positive", "anonymized_text": "Experience\nDeveloped Python FastAPI REST API services"},
+    {"resume_id": "validation-negative", "anonymized_text": "Experience\nHotel reservations and guest relations"},
+    {"resume_id": "test-positive", "anonymized_text": "Experience\nIFRS financial reporting and financial statements"},
+    {"resume_id": "test-negative", "anonymized_text": "Experience\nAutoCAD construction supervision"}
+  ],
+  "judgments": [
+    {"vacancy_id": "backend-validation", "resume_id": "validation-positive", "label": 1, "split": "validation"},
+    {"vacancy_id": "backend-validation", "resume_id": "validation-negative", "label": 0, "split": "validation"},
+    {"vacancy_id": "accounting-test", "resume_id": "test-positive", "label": 1, "split": "test"},
+    {"vacancy_id": "accounting-test", "resume_id": "test-negative", "label": 0, "split": "test"}
+  ]
+}

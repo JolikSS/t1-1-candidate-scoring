@@ -6,7 +6,7 @@ from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 
-def text_pdf(lines):
+def text_pdf(lines, pages=1):
     writer = PdfWriter()
     page = writer.add_blank_page(width=612, height=792)
     font = DictionaryObject(
@@ -27,6 +27,8 @@ def text_pdf(lines):
     stream = DecodedStreamObject()
     stream.set_data("\n".join(commands).encode("ascii"))
     page[NameObject("/Contents")] = writer._add_object(stream)
+    for _ in range(pages - 1):
+        writer.add_page(page)
     output = BytesIO()
     writer.write(output)
     return output.getvalue()

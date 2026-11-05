@@ -14,9 +14,10 @@ from fastapi import HTTPException
 from api.config import get_settings
 from api.services.documents import skill_catalog
 from scorer.expression_catalog import CATALOG_VERSION
+from scorer.lemmatization import LEMMA_PROFILE, runtime_versions
 from scorer.text_similarity import calculate_corpus_similarities
 from scorer.tfidf_features import TFIDF_PREPARATION_VERSION
-from scorer.weighted_ranking import WEIGHTED_RANKING_VERSION, weighted_results
+from scorer.weighted_ranking import LEMMATIZED_RANKING_VERSION, WEIGHTED_RANKING_VERSION, weighted_results
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,8 +108,13 @@ def calculate_run(db, request, graph=None):
             else settings.critical_multiplier,
         }
         try:
-            similarities = calculate_corpus_similarities(candidates, vacancy, corpus_resumes, corpus_vacancies)
-            results = weighted_results(candidates, similarities, vacancy, **parameters)
+            similarities = calculate_corpus_similarities(
+                candidates, vacancy, corpus_resumes, corpus_vacancies, profile=request.feature_profile
+            )
+            version = (
+                LEMMATIZED_RANKING_VERSION if request.feature_profile == LEMMA_PROFILE else WEIGHTED_RANKING_VERSION
+            )
+            results = weighted_results(candidates, similarities, vacancy, **parameters, ranking_version=version)
         except Exception as exc:
             LOGGER.error("Weighted scoring failed: %s", type(exc).__name__)
             raise HTTPException(503, "Не удалось рассчитать рейтинг.") from exc
@@ -124,12 +130,14 @@ def calculate_run(db, request, graph=None):
         }
         metadata = {
             "vacancy_title": vacancy["title"],
-            "ranking_version": WEIGHTED_RANKING_VERSION,
+            "ranking_version": version,
             "parameters": {
                 **parameters,
                 "catalog_version": CATALOG_VERSION,
                 "catalog": catalog,
                 "tfidf_version": TFIDF_PREPARATION_VERSION,
+                "feature_profile": request.feature_profile,
+                "runtime_versions": runtime_versions(),
             },
             "corpus": corpus,
             "duration_seconds": round(time.monotonic() - started, 4),

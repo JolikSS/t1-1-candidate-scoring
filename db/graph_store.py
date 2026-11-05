@@ -30,10 +30,13 @@ RESULT_QUERY = """
 
 
 class GraphStore:
-    def __init__(self):
+    def __init__(self, uri=None, user=None, password=None):
         self.driver = GraphDatabase.driver(
-            os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
-            auth=(os.getenv("NEO4J_USER", "neo4j"), os.environ["NEO4J_PASSWORD"]),
+            uri or os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
+            auth=(
+                user or os.getenv("NEO4J_USER", "neo4j"),
+                password if password is not None else os.environ["NEO4J_PASSWORD"],
+            ),
             connection_timeout=5,
         )
 
@@ -115,9 +118,9 @@ class GraphStore:
             ).single()
             if record is None:
                 return []
-            from scorer.weighted_ranking import WEIGHTED_RANKING_VERSION
+            from scorer.weighted_ranking import WEIGHTED_RANKING_VERSIONS
 
-            if record["version"] == WEIGHTED_RANKING_VERSION:
+            if record["version"] in WEIGHTED_RANKING_VERSIONS:
                 return json.loads(record["results_json"])
             if record["version"] != RANKING_VERSION:
                 raise ValueError("Historical graph run uses another ranking version; request a new calculation.")
@@ -129,6 +132,12 @@ class GraphStore:
     def record_run(self, run, vacancy, resumes):
         """Best-effort materialization of an authoritative MongoDB weighted run."""
         observed = {r["resume_id"]: r.get("skills", []) for r in resumes}
+        if (
+            len(observed) != len(resumes)
+            or len(run["results"]) != len(resumes)
+            or {row["resume_id"] for row in run["results"]} != observed.keys()
+        ):
+            raise ValueError("Graph mirror requires one result per unique candidate")
         rows = [
             {
                 "resume_id": row["resume_id"],

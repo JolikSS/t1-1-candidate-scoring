@@ -65,11 +65,11 @@ def rank_result_rows(rows):
 
 def public_result(row, *, default_version="legacy"):
     """Project historical records without changing their stored order or data."""
-    from scorer.weighted_ranking import WEIGHTED_RANKING_VERSION, WEIGHTED_RESULT_FIELDS
+    from scorer.weighted_ranking import WEIGHTED_RANKING_VERSIONS, WEIGHTED_RESULT_FIELDS
 
     fields = (
         WEIGHTED_RESULT_FIELDS
-        if row.get("ranking_version", default_version) == WEIGHTED_RANKING_VERSION
+        if row.get("ranking_version", default_version) in WEIGHTED_RANKING_VERSIONS
         else RESULT_FIELDS
     )
     result = {key: value for key, value in row.items() if key in fields}

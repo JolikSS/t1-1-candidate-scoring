@@ -14,7 +14,7 @@ import api.main as api
 from api.config import Settings
 from api.services.scoring import scoring_slots
 from db.mongo_store import MongoStore
-from scorer.weighted_ranking import WEIGHTED_RANKING_VERSION, weighted_results
+from scorer.weighted_ranking import LEMMATIZED_RANKING_VERSION, weighted_results
 from tests.pdf_fixture import text_pdf
 
 
@@ -59,7 +59,7 @@ class BackendApiTests(unittest.TestCase):
         uploaded = self.upload()
         identifier = uploaded["resumes"][0]["resume_id"]
         run = self.run_score(vacancy)
-        self.assertEqual(run["ranking_version"], WEIGHTED_RANKING_VERSION)
+        self.assertEqual(run["ranking_version"], LEMMATIZED_RANKING_VERSION)
         self.assertEqual(run["status"], "completed")
         self.assertEqual(run["results"][0]["skill_coverage"], 100)
         self.assertEqual(self.client.get("/scoring-runs/" + run["run_id"]).json()["results"], run["results"])

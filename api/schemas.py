@@ -75,6 +75,7 @@ class ScoringRequest(StrictModel):
     resume_ids: Annotated[list[Identifier], Field(min_length=1, max_length=500)] | None = None
     coverage_weight: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False, strict=True)
     critical_multiplier: float | None = Field(default=None, gt=1, le=100, allow_inf_nan=False, strict=True)
+    feature_profile: Literal["expressions-v1", "lemmas-ru-en-v2"] = "lemmas-ru-en-v2"
 
     @field_validator("resume_ids")
     @classmethod

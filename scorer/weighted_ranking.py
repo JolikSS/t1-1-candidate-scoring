@@ -4,6 +4,8 @@ from scorer.professional_expressions import canonical_skill_key
 from scorer.ranking import _bounded_score, build_candidate_metrics
 
 WEIGHTED_RANKING_VERSION = "weighted-coverage-tfidf-v1"
+LEMMATIZED_RANKING_VERSION = "weighted-coverage-tfidf-lemma-v2"
+WEIGHTED_RANKING_VERSIONS = (WEIGHTED_RANKING_VERSION, LEMMATIZED_RANKING_VERSION)
 WEIGHTED_RESULT_FIELDS = (
     "resume_id",
     "candidate",
@@ -20,7 +22,17 @@ WEIGHTED_RESULT_FIELDS = (
 )
 
 
-def weighted_results(resumes, similarities, vacancy, *, coverage_weight=0.7, critical_multiplier=2.0):
+def weighted_results(
+    resumes,
+    similarities,
+    vacancy,
+    *,
+    coverage_weight=0.7,
+    critical_multiplier=2.0,
+    ranking_version=WEIGHTED_RANKING_VERSION,
+):
+    if ranking_version not in WEIGHTED_RANKING_VERSIONS:
+        raise ValueError("Unknown weighted ranking version")
     if isinstance(coverage_weight, bool) or not 0 <= coverage_weight <= 1:
         raise ValueError("coverage_weight must be in 0..1")
     if isinstance(critical_multiplier, bool) or not 1 < critical_multiplier <= 100:
@@ -55,7 +67,7 @@ def weighted_results(resumes, similarities, vacancy, *, coverage_weight=0.7, cri
                 "missing_skills": missing,
                 "matched_critical_skills": [name for key, name in required.items() if key in critical & known],
                 "missing_critical_skills": [name for key, name in required.items() if key in critical - known],
-                "ranking_version": WEIGHTED_RANKING_VERSION,
+                "ranking_version": ranking_version,
             }
         )
     return sorted(results, key=lambda row: (-row["score"], row["resume_id"]))
