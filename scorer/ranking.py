@@ -5,11 +5,17 @@ from __future__ import annotations
 import math
 from numbers import Real
 
-
 RANKING_VERSION = "coverage-tfidf-id-v1"
 RESULT_FIELDS = (
-    "resume_id", "candidate", "file_number", "file_type", "text_similarity", "score",
-    "matched_skills", "missing_skills", "ranking_version",
+    "resume_id",
+    "candidate",
+    "file_number",
+    "file_type",
+    "text_similarity",
+    "score",
+    "matched_skills",
+    "missing_skills",
+    "ranking_version",
 )
 
 
@@ -31,11 +37,15 @@ def build_candidate_metrics(resumes, similarities):
         if not isinstance(identifier, str) or not identifier.strip() or identifier in seen:
             raise ValueError("Candidate IDs must be nonempty and unique.")
         seen.add(identifier)
-        rows.append({
-            "resume_id": identifier, "candidate": "Кандидат " + identifier[-6:],
-            "file_number": number, "file_type": resume.get("file_type", "pdf"),
-            "text_similarity": _bounded_score(similarity, "TF-IDF", nullable=True),
-        })
+        rows.append(
+            {
+                "resume_id": identifier,
+                "candidate": "Кандидат " + identifier[-6:],
+                "file_number": number,
+                "file_type": resume.get("file_type", "pdf"),
+                "text_similarity": _bounded_score(similarity, "TF-IDF", nullable=True),
+            }
+        )
     return rows
 
 
@@ -55,6 +65,13 @@ def rank_result_rows(rows):
 
 def public_result(row, *, default_version="legacy"):
     """Project historical records without changing their stored order or data."""
-    result = {key: value for key, value in row.items() if key in RESULT_FIELDS}
+    from scorer.weighted_ranking import WEIGHTED_RANKING_VERSIONS, WEIGHTED_RESULT_FIELDS
+
+    fields = (
+        WEIGHTED_RESULT_FIELDS
+        if row.get("ranking_version", default_version) in WEIGHTED_RANKING_VERSIONS
+        else RESULT_FIELDS
+    )
+    result = {key: value for key, value in row.items() if key in fields}
     result.setdefault("ranking_version", default_version)
     return result

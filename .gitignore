@@ -227,3 +227,7 @@ __marimo__/
 
 # Local IDE configuration
 .idea/
+
+# Private evaluation datasets, monitoring samples and generated reports
+/artifacts/
+/data/evaluation/

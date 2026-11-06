@@ -2,31 +2,35 @@
 
 Uses only the configured real ZIPs; prints aggregates, never document contents.
 """
-from pathlib import Path
+
 import json
 import sys
 import time
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import requests
 from dotenv import load_dotenv
+
 load_dotenv(ROOT / ".env")
+from api.config import get_settings
 from db.data_paths import data_root
-from db.mongo_store import MongoStore
 from db.graph_store import GraphStore
+from db.mongo_store import MongoStore
 from scorer.benchmark import analyze_skills
 from scorer.ranking import RANKING_VERSION, RESULT_FIELDS, rank_result_rows
 
 
 def main():
     import os
+
     url = os.getenv("SCORING_API_URL", "http://127.0.0.1:8000")
     response = requests.get(url + "/health", timeout=10)
     response.raise_for_status()
-    assert response.json()["graph"] == "neo4j"
-    db, graph = MongoStore(), GraphStore()
+    graph = GraphStore() if get_settings().neo4j_enabled else None
+    db = MongoStore()
     try:
         history_before = db.db.scoring_runs.count_documents({})
         with (data_root() / "vacancies.zip").open("rb") as source:
@@ -35,23 +39,29 @@ def main():
         vacancies = response.json()["vacancies"]
         assert vacancies and all(db.get_vacancy(v["id"]) for v in vacancies)
         vacancy = next(v for v in vacancies if v.get("required_skills"))
-        form = {"vacancy_id": vacancy["id"], "vacancy_title": vacancy["title"],
-                "vacancy_description": vacancy["description"],
-                "required_skills": json.dumps(vacancy["required_skills"]), "uploaded_only": "false"}
+        form = {
+            "vacancy_id": vacancy["id"],
+            "vacancy_title": vacancy["title"],
+            "vacancy_description": vacancy["description"],
+            "required_skills": json.dumps(vacancy["required_skills"]),
+            "uploaded_only": "false",
+        }
         runs = []
         for attempt in range(2):
             start = time.monotonic()
             with (data_root() / "resumes.zip").open("rb") as source:
-                response = requests.post(url + "/score", data=form,
-                    files={"files": ("resumes.zip", source)}, timeout=1800)
+                response = requests.post(
+                    url + "/score", data=form, files={"files": ("resumes.zip", source)}, timeout=1800
+                )
             response.raise_for_status()
             payload = response.json()
             rows = payload["results"]
             assert payload["ranking_version"] == RANKING_VERSION
             assert rows and all(set(row) == set(RESULT_FIELDS) for row in rows)
             assert rows == rank_result_rows(rows)
-            graph_rows = graph.list_results(payload["run_id"])
-            assert graph_rows == rows
+            if graph is not None:
+                graph_rows = graph.list_results(payload["run_id"])
+                assert graph_rows == rows
             stored = {r["resume_id"]: r for r in db.list_resumes()}
             for row in rows:
                 coverage = analyze_skills(stored[row["resume_id"]]["skills"], vacancy["required_skills"])
@@ -62,18 +72,39 @@ def main():
             runs.append({"ids": [r["resume_id"] for r in rows], "stored": len(stored)})
             if attempt:
                 assert runs[0] == runs[1], "Repeat changed corpus or ranking"
-            print(json.dumps({"attempt": attempt + 1, "candidates": len(rows), "stored": len(stored),
-                              "errors": len(payload["errors"]), "ranking_version": payload["ranking_version"],
-                              "seconds": round(time.monotonic() - start, 2), "graph_matches": True}), flush=True)
+            print(
+                json.dumps(
+                    {
+                        "attempt": attempt + 1,
+                        "candidates": len(rows),
+                        "stored": len(stored),
+                        "errors": len(payload["errors"]),
+                        "ranking_version": payload["ranking_version"],
+                        "seconds": round(time.monotonic() - start, 2),
+                        "graph_matches": graph is not None,
+                    }
+                ),
+                flush=True,
+            )
         # Score persistent corpus with no files at all.
         response = requests.post(url + "/score", data=form, timeout=1800)
         response.raise_for_status()
         assert [r["resume_id"] for r in response.json()["results"]] == runs[-1]["ids"]
         assert db.db.scoring_runs.count_documents({}) == history_before + 3
-        print(json.dumps({"status": "passed", "vacancies_imported": len(vacancies),
-                          "without_reupload": True, "history_preserved": True}), flush=True)
+        print(
+            json.dumps(
+                {
+                    "status": "passed",
+                    "vacancies_imported": len(vacancies),
+                    "without_reupload": True,
+                    "history_preserved": True,
+                }
+            ),
+            flush=True,
+        )
     finally:
-        graph.close()
+        if graph is not None:
+            graph.close()
         db.close()
 
 

@@ -7,9 +7,11 @@ from typing import Any
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 from scorer.expression_catalog import DEFAULT_SKILLS
+from scorer.lemmatization import EXPRESSION_PROFILE
 from scorer.professional_expressions import canonical_skill_key
-from scorer.tfidf_features import ProfessionalAnalyzer, STOP_WORDS
+from scorer.tfidf_features import ProfessionalAnalyzer
 
 
 def _repeat(value: str, count: int) -> str:
@@ -17,25 +19,29 @@ def _repeat(value: str, count: int) -> str:
 
 
 def _weighted_vacancy(vacancy: dict[str, Any]) -> str:
-    return "\n\n".join([
-        _repeat(str(vacancy.get("title", "")), 3),
-        _repeat(", ".join(vacancy.get("required_skills", [])), 3),
-        ", ".join(vacancy.get("preferred_skills", [])),
-        _repeat(str(vacancy.get("requirements", "")), 2),
-        str(vacancy.get("responsibilities", "")),
-        str(vacancy.get("description", "")),
-    ])
+    return "\n\n".join(
+        [
+            _repeat(str(vacancy.get("title", "")), 3),
+            _repeat(", ".join(vacancy.get("required_skills", [])), 3),
+            ", ".join(vacancy.get("preferred_skills", [])),
+            _repeat(str(vacancy.get("requirements", "")), 2),
+            str(vacancy.get("responsibilities", "")),
+            str(vacancy.get("description", "")),
+        ]
+    )
 
 
 def _weighted_resume(resume: dict[str, Any]) -> str:
     skills = " ".join(resume.get("skills", []))
-    return "\n\n".join([
-        _repeat(str(resume.get("title", "")), 3),
-        _repeat(skills, 3),
-        _repeat(str(resume.get("experience", "")), 2),
-        str(resume.get("education", "")),
-        str(resume.get("anonymized_text", "")),
-    ])
+    return "\n\n".join(
+        [
+            _repeat(str(resume.get("title", "")), 3),
+            _repeat(skills, 3),
+            _repeat(str(resume.get("experience", "")), 2),
+            str(resume.get("education", "")),
+            str(resume.get("anonymized_text", "")),
+        ]
+    )
 
 
 @dataclass
@@ -49,20 +55,24 @@ class CorpusTfidf:
 
 
 def fit_corpus_tfidf(
-    resumes: list[dict[str, Any]], vacancy: dict[str, Any],
-    corpus_resumes: list[dict[str, Any]], corpus_vacancies: list[dict[str, Any]],
+    resumes: list[dict[str, Any]],
+    vacancy: dict[str, Any],
+    corpus_resumes: list[dict[str, Any]],
+    corpus_vacancies: list[dict[str, Any]],
+    *,
+    profile: str = EXPRESSION_PROFILE,
 ) -> CorpusTfidf:
     """Expose the fitted sparse representation for scoring and diagnostics."""
     vacancy_document = _weighted_vacancy(vacancy)
     resume_documents = [_weighted_resume(item) for item in resumes]
     # Compare each document exactly once, including repeated current-corpus inputs.
     compared = [vacancy_document, *resume_documents]
+
     def identity(kind, item, document):
         return kind, item.get("resume_id" if kind == "resume" else "id") or document
-    extras = {identity("vacancy", item, _weighted_vacancy(item)): _weighted_vacancy(item)
-              for item in corpus_vacancies}
-    extras.update({identity("resume", item, _weighted_resume(item)): _weighted_resume(item)
-                   for item in corpus_resumes})
+
+    extras = {identity("vacancy", item, _weighted_vacancy(item)): _weighted_vacancy(item) for item in corpus_vacancies}
+    extras.update({identity("resume", item, _weighted_resume(item)): _weighted_resume(item) for item in corpus_resumes})
     extras.pop(identity("vacancy", vacancy, vacancy_document), None)
     for item, document in zip(resumes, resume_documents):
         extras.pop(identity("resume", item, document), None)
@@ -86,9 +96,14 @@ def fit_corpus_tfidf(
                     catalog.setdefault(canonical_skill_key(skill), skill.strip())
     shared_catalog = tuple(catalog.values())
     vectorizer = TfidfVectorizer(
-        analyzer=ProfessionalAnalyzer(shared_catalog), token_pattern=None,
-        lowercase=False, sublinear_tf=True, smooth_idf=True, norm="l2",
-        max_df=1.0, min_df=1,
+        analyzer=ProfessionalAnalyzer(shared_catalog, profile),
+        token_pattern=None,
+        lowercase=False,
+        sublinear_tf=True,
+        smooth_idf=True,
+        norm="l2",
+        max_df=1.0,
+        min_df=1,
     )
     try:
         matrix = vectorizer.fit_transform(corpus)
@@ -103,15 +118,19 @@ def fit_corpus_tfidf(
 
 
 def calculate_corpus_similarities(
-    resumes: list[dict[str, Any]], vacancy: dict[str, Any],
-    corpus_resumes: list[dict[str, Any]], corpus_vacancies: list[dict[str, Any]],
+    resumes: list[dict[str, Any]],
+    vacancy: dict[str, Any],
+    corpus_resumes: list[dict[str, Any]],
+    corpus_vacancies: list[dict[str, Any]],
+    *,
+    profile: str = EXPRESSION_PROFILE,
 ) -> list[float | None]:
     """Fit once on the shared corpus, return cosine similarity on a 0..100 scale."""
     if not resumes:
         return []
     if not _weighted_vacancy(vacancy).strip():
         return [None] * len(resumes)
-    fitted = fit_corpus_tfidf(resumes, vacancy, corpus_resumes, corpus_vacancies)
+    fitted = fit_corpus_tfidf(resumes, vacancy, corpus_resumes, corpus_vacancies, profile=profile)
     if fitted.matrix is None:
         return [0.0] * len(resumes)
     candidates = fitted.matrix[fitted.candidate_indices]
@@ -123,6 +142,4 @@ def calculate_text_similarity(resume_text: str, vacancy_text: str) -> float | No
     """Compatibility helper; callers should prefer corpus-fitted scoring."""
     if not resume_text.strip() or not vacancy_text.strip():
         return None
-    return calculate_corpus_similarities(
-        [{"anonymized_text": resume_text}], {"description": vacancy_text}, [], []
-    )[0]
+    return calculate_corpus_similarities([{"anonymized_text": resume_text}], {"description": vacancy_text}, [], [])[0]
