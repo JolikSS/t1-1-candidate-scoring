@@ -1,0 +1,747 @@
+{
+  "base_commit": "f72886f",
+  "catalog_sha256": "88806d41ea0745dbf509a31adcbfd68c14d60b5465811abb85d079440caa075e",
+  "dataset_version": "pilot-50-v1",
+  "documents": [
+    {
+      "id": "r-01380fdda4662812",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "01380fdda4662812302a54ae8163a795fa5baf820148dc88f2bb5226cce7c6f1",
+      "split": "test"
+    },
+    {
+      "id": "r-092c9a50d4ff71cb",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "092c9a50d4ff71cbba1f4fed7727a292be6629d26cab1083c9cbdb132ade9692",
+      "split": "validation"
+    },
+    {
+      "id": "r-0af119ba1465d181",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "0af119ba1465d18130671857b6ed85eb06f2048dbed2a77dc9cb0fcc65fba578",
+      "split": "test"
+    },
+    {
+      "id": "r-0bc9699a745963f0",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "0bc9699a745963f0945f2d98bfc464182c9946f1ee2a326a79e0d3fd0095a78b",
+      "split": "validation"
+    },
+    {
+      "id": "r-0f02ef786fd15bd8",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "0f02ef786fd15bd8100254f7cf7747ee226f0383303ecb7b9aaf2f7c0baaa5b9",
+      "split": "test"
+    },
+    {
+      "id": "r-128bca1165b9e616",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "128bca1165b9e61676a308707de3ef0604cf2ceb56c72b241fc7050552aa032e",
+      "split": "test"
+    },
+    {
+      "id": "r-155134ab9c32d266",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "155134ab9c32d266135e3e4898a43d8d6159bf33f4154bb03bee9923f503347a",
+      "split": "test"
+    },
+    {
+      "id": "r-192502322bf2e6eb",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "192502322bf2e6ebfb79203b65c7f388c3b1b262df6e6b66237438190814bda6",
+      "split": "test"
+    },
+    {
+      "id": "r-1d3e55a399b1c348",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "1d3e55a399b1c3489741bd74fd01cd76da659389784112b6be50c62f2c43632f",
+      "split": "test"
+    },
+    {
+      "id": "r-1d539711135c0a9a",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "1d539711135c0a9aac77b1302a76f3cdc81119f6dbe2bb9484c76c30212d4d62",
+      "split": "test"
+    },
+    {
+      "id": "r-25f8593e01b243d8",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "25f8593e01b243d879e2fa88a4d6e7cb3325c2f1e168caee48e7bae0fee8f31e",
+      "split": "test"
+    },
+    {
+      "id": "r-2a76ef53613da0db",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "2a76ef53613da0dbbd127ac8460517e8b9f1c879d7c7139ea91be8c564245f02",
+      "split": "validation"
+    },
+    {
+      "id": "r-2b7680954d133165",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "2b7680954d133165266586f5f3367d597d5fb0e6c3929bb9a5d7762001f1e088",
+      "split": "test"
+    },
+    {
+      "id": "r-3738682765cadad1",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "3738682765cadad1f0adc5a7d152525b7f30d2989b935856fa5e79a385f5394c",
+      "split": "test"
+    },
+    {
+      "id": "r-3de9f36e042a3df7",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "3de9f36e042a3df7dcc1fe1917a3c792aa4e93ebc9f5d14f70899ed3add632d0",
+      "split": "test"
+    },
+    {
+      "id": "r-41958ba5a8ac8ba3",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "41958ba5a8ac8ba372592487776857efc04feca8622db2da6c7d411e88e62333",
+      "split": "validation"
+    },
+    {
+      "id": "r-44161b7ce50ff051",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "44161b7ce50ff0510c3d0319aae0feb03d49e50e875c91e4648965700e1d76c6",
+      "split": "validation"
+    },
+    {
+      "id": "r-474702bee8b3431c",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "474702bee8b3431c5a0ad13d822c90bd1a9f7b340dee718bcb187597f718c718",
+      "split": "test"
+    },
+    {
+      "id": "r-4d16ca3d2e8feb0b",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "4d16ca3d2e8feb0bdd4c3543911e1ef357bac260e60cb744d45e7772be99fc50",
+      "split": "test"
+    },
+    {
+      "id": "r-56bcf96d5e82586f",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "56bcf96d5e82586fd1328361d6e80b84141c4c30a2356470f73d1100f0a02ac6",
+      "split": "test"
+    },
+    {
+      "id": "r-6140ff5237b6dc4c",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "6140ff5237b6dc4c1fef4b7af9bc7923b511738b43bfbd21f67479b30f8e8419",
+      "split": "validation"
+    },
+    {
+      "id": "r-66e1a76248f6ffa9",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "66e1a76248f6ffa99bbc78906ddc4a3ae69ceed0902c3b9556ca5681153473ba",
+      "split": "test"
+    },
+    {
+      "id": "r-6b3e5e4980c5ee80",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "6b3e5e4980c5ee802a46afd516b39a5989a20a7decce4938afb3005fc0bcebd4",
+      "split": "test"
+    },
+    {
+      "id": "r-77f4cc7c9ce5b7bf",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "77f4cc7c9ce5b7bf0cbdf6ee98c2658b2fc1915898f76b3eab3ddf4791c8a602",
+      "split": "test"
+    },
+    {
+      "id": "r-78de483da29e6813",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "78de483da29e6813a20776ff2c3b75060e94e58997987af6bfef3aef0100e288",
+      "split": "test"
+    },
+    {
+      "id": "r-7dd0e9d9d1c2a65e",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "7dd0e9d9d1c2a65e6c5e9b886bd0e4b31b5c9bdacdc9c7abcdb7e38948fb43d3",
+      "split": "validation"
+    },
+    {
+      "id": "r-7f4206ad4c06f843",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "7f4206ad4c06f84376fffd3cb2a819aabbcf0f888a84be079da31b7166650864",
+      "split": "test"
+    },
+    {
+      "id": "r-88d519a624a7e7c4",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "88d519a624a7e7c4047ba582a22c3e2700a867d4dc2b8ab0d07347ff3904be7b",
+      "split": "validation"
+    },
+    {
+      "id": "r-8b8814495e0eff0b",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "8b8814495e0eff0b302910992d54a0cd85a9375314635d5c047b6e92b72a1364",
+      "split": "test"
+    },
+    {
+      "id": "r-8cb7108d7f9406db",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "8cb7108d7f9406dbeac6d7d3a6f5117b02cf37b006451904aa774df3c9a97cab",
+      "split": "validation"
+    },
+    {
+      "id": "r-94d59d6802e84d07",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "94d59d6802e84d075aefacae97799587bf3862b933522c6dfa22ebc07499aa9c",
+      "split": "validation"
+    },
+    {
+      "id": "r-97eb053e86859fa5",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "97eb053e86859fa55092b29fb0b38276da70911def3052e890bb623d01cc9d71",
+      "split": "test"
+    },
+    {
+      "id": "r-9d0ccd827cb93c8c",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "9d0ccd827cb93c8ca04bfedda0999d80548ba7195f5a0d5cd920e4924610bbde",
+      "split": "test"
+    },
+    {
+      "id": "r-a2297da4a628e7b2",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "a2297da4a628e7b2478fc6f6fe230f3586db0c30e591c5958c810361074459e0",
+      "split": "test"
+    },
+    {
+      "id": "r-a8d6f842b9b64688",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "a8d6f842b9b6468887653a41ea163953ad2d2c0a073fbc3b39850e207099d901",
+      "split": "validation"
+    },
+    {
+      "id": "r-ab5c1243163166de",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "ab5c1243163166de9b60522d5d05855fd577203b7740d648286ae5836c197504",
+      "split": "validation"
+    },
+    {
+      "id": "r-b27b59a62c1c7f6c",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "b27b59a62c1c7f6c81aa0551e660ccff87c99fc34452d1f8ed8334798d4eede7",
+      "split": "test"
+    },
+    {
+      "id": "r-bbc90d21452113dc",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "bbc90d21452113dcf0dceffcd19ced9f59489fe6eebe3f4d1eda427cc5e131e0",
+      "split": "test"
+    },
+    {
+      "id": "r-becc223e9fb35d20",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "becc223e9fb35d204e1858a23264efaef4eb142267709eb192a67ca1b2ae5670",
+      "split": "validation"
+    },
+    {
+      "id": "r-c369292c5d0d7f37",
+      "kind": "resume",
+      "role": "cpp",
+      "sha256": "c369292c5d0d7f373a5eeb69adeaee748b6c3fa6793cd94fed5d08cadc46facf",
+      "split": "validation"
+    },
+    {
+      "id": "r-cbbe8eca99b33be1",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "cbbe8eca99b33be19e9ffbefc76b67c54848cfe18c1b4bcb25ccbfb13f0bf239",
+      "split": "validation"
+    },
+    {
+      "id": "r-d36e06d121950444",
+      "kind": "resume",
+      "role": "data-science",
+      "sha256": "d36e06d121950444291d2a5e48c63d037b84190360df5682f6c09d8fcee1fdab",
+      "split": "validation"
+    },
+    {
+      "id": "r-e0d5f759c48d59fb",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "e0d5f759c48d59fb72208e999b8c3b09591cc9ddc9139a6235ac5eaa6a674720",
+      "split": "test"
+    },
+    {
+      "id": "r-e37ec41e85ba718e",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "e37ec41e85ba718eb1c8b43ab366f6147ff637bacde6fac7157f22d55d708366",
+      "split": "test"
+    },
+    {
+      "id": "r-e61a6f3e85566b8a",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "e61a6f3e85566b8a1fafc4c9027db994168e41e15887b19f67db5512ce8810ca",
+      "split": "validation"
+    },
+    {
+      "id": "r-e6c026ef97f3e1c7",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "e6c026ef97f3e1c77b9ae006afced578e08ce2b663076e449b5333239c24bb6c",
+      "split": "test"
+    },
+    {
+      "id": "r-ead103583c025983",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "ead103583c02598397f69a24e37896e2d7967529b9f4a473c858d54e5c7ca2e4",
+      "split": "test"
+    },
+    {
+      "id": "r-eb05ff2679b5c9bd",
+      "kind": "resume",
+      "role": "backend",
+      "sha256": "eb05ff2679b5c9bd530ac205581360660671c6414d9c9e44efcdef5c65cad9d0",
+      "split": "validation"
+    },
+    {
+      "id": "r-efd910418d8ad874",
+      "kind": "resume",
+      "role": "frontend",
+      "sha256": "efd910418d8ad8742e7ec71f89ffd41443765682ee39f8c7edc96ac17d923c03",
+      "split": "validation"
+    },
+    {
+      "id": "r-fc1084cf7152b123",
+      "kind": "resume",
+      "role": "devops",
+      "sha256": "fc1084cf7152b1239a459479bb3807ed60389978a88ecc24cdc6244a1e18ffa4",
+      "split": "validation"
+    },
+    {
+      "id": "v-03410c39685eeaa4",
+      "kind": "vacancy",
+      "role": "backend",
+      "sha256": "03410c39685eeaa4152c32cae84cdffc49c9a364d9793e437473d83f4a885b72",
+      "split": "test"
+    },
+    {
+      "id": "v-0a4f3013c22af162",
+      "kind": "vacancy",
+      "role": "data-science",
+      "sha256": "0a4f3013c22af162a161c1370c654a59d4694bee1e2fbe065be0fa4779eff78b",
+      "split": "validation"
+    },
+    {
+      "id": "v-b84a406deac4c7c8",
+      "kind": "vacancy",
+      "role": "devops",
+      "sha256": "b84a406deac4c7c85bfeafad335979fe7fc439dc659560df319edde0c9cb8971",
+      "split": "test"
+    },
+    {
+      "id": "v-c9ff4e88c54595f0",
+      "kind": "vacancy",
+      "role": "cpp",
+      "sha256": "c9ff4e88c54595f00d4602c582fa780d1fdc0afc96ef97541e134bfb49e237ab",
+      "split": "validation"
+    },
+    {
+      "id": "v-efe2e3580d948fa7",
+      "kind": "vacancy",
+      "role": "frontend",
+      "sha256": "efe2e3580d948fa776917e31713087cb43358d782f26edade36ba9fb9f6f6164",
+      "split": "test"
+    }
+  ],
+  "pairs": [
+    {
+      "pair_id": "v-03410c39685eeaa4__r-01380fdda4662812",
+      "resume_id": "r-01380fdda4662812",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-0f02ef786fd15bd8",
+      "resume_id": "r-0f02ef786fd15bd8",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-128bca1165b9e616",
+      "resume_id": "r-128bca1165b9e616",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-1d3e55a399b1c348",
+      "resume_id": "r-1d3e55a399b1c348",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-3de9f36e042a3df7",
+      "resume_id": "r-3de9f36e042a3df7",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-474702bee8b3431c",
+      "resume_id": "r-474702bee8b3431c",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-4d16ca3d2e8feb0b",
+      "resume_id": "r-4d16ca3d2e8feb0b",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-6b3e5e4980c5ee80",
+      "resume_id": "r-6b3e5e4980c5ee80",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-7f4206ad4c06f843",
+      "resume_id": "r-7f4206ad4c06f843",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-03410c39685eeaa4__r-a2297da4a628e7b2",
+      "resume_id": "r-a2297da4a628e7b2",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-03410c39685eeaa4"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-092c9a50d4ff71cb",
+      "resume_id": "r-092c9a50d4ff71cb",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-2a76ef53613da0db",
+      "resume_id": "r-2a76ef53613da0db",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-41958ba5a8ac8ba3",
+      "resume_id": "r-41958ba5a8ac8ba3",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-7dd0e9d9d1c2a65e",
+      "resume_id": "r-7dd0e9d9d1c2a65e",
+      "split": "validation",
+      "stratum": "adjacent",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-88d519a624a7e7c4",
+      "resume_id": "r-88d519a624a7e7c4",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-8cb7108d7f9406db",
+      "resume_id": "r-8cb7108d7f9406db",
+      "split": "validation",
+      "stratum": "adjacent",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-cbbe8eca99b33be1",
+      "resume_id": "r-cbbe8eca99b33be1",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-d36e06d121950444",
+      "resume_id": "r-d36e06d121950444",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-eb05ff2679b5c9bd",
+      "resume_id": "r-eb05ff2679b5c9bd",
+      "split": "validation",
+      "stratum": "background",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-0a4f3013c22af162__r-efd910418d8ad874",
+      "resume_id": "r-efd910418d8ad874",
+      "split": "validation",
+      "stratum": "background",
+      "vacancy_id": "v-0a4f3013c22af162"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-0af119ba1465d181",
+      "resume_id": "r-0af119ba1465d181",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-192502322bf2e6eb",
+      "resume_id": "r-192502322bf2e6eb",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-1d539711135c0a9a",
+      "resume_id": "r-1d539711135c0a9a",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-25f8593e01b243d8",
+      "resume_id": "r-25f8593e01b243d8",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-b27b59a62c1c7f6c",
+      "resume_id": "r-b27b59a62c1c7f6c",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-bbc90d21452113dc",
+      "resume_id": "r-bbc90d21452113dc",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-e0d5f759c48d59fb",
+      "resume_id": "r-e0d5f759c48d59fb",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-e37ec41e85ba718e",
+      "resume_id": "r-e37ec41e85ba718e",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-e6c026ef97f3e1c7",
+      "resume_id": "r-e6c026ef97f3e1c7",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-b84a406deac4c7c8__r-ead103583c025983",
+      "resume_id": "r-ead103583c025983",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-b84a406deac4c7c8"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-0bc9699a745963f0",
+      "resume_id": "r-0bc9699a745963f0",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-44161b7ce50ff051",
+      "resume_id": "r-44161b7ce50ff051",
+      "split": "validation",
+      "stratum": "background",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-6140ff5237b6dc4c",
+      "resume_id": "r-6140ff5237b6dc4c",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-94d59d6802e84d07",
+      "resume_id": "r-94d59d6802e84d07",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-a8d6f842b9b64688",
+      "resume_id": "r-a8d6f842b9b64688",
+      "split": "validation",
+      "stratum": "adjacent",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-ab5c1243163166de",
+      "resume_id": "r-ab5c1243163166de",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-becc223e9fb35d20",
+      "resume_id": "r-becc223e9fb35d20",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-c369292c5d0d7f37",
+      "resume_id": "r-c369292c5d0d7f37",
+      "split": "validation",
+      "stratum": "primary",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-e61a6f3e85566b8a",
+      "resume_id": "r-e61a6f3e85566b8a",
+      "split": "validation",
+      "stratum": "adjacent",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-c9ff4e88c54595f0__r-fc1084cf7152b123",
+      "resume_id": "r-fc1084cf7152b123",
+      "split": "validation",
+      "stratum": "background",
+      "vacancy_id": "v-c9ff4e88c54595f0"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-155134ab9c32d266",
+      "resume_id": "r-155134ab9c32d266",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-2b7680954d133165",
+      "resume_id": "r-2b7680954d133165",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-3738682765cadad1",
+      "resume_id": "r-3738682765cadad1",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-56bcf96d5e82586f",
+      "resume_id": "r-56bcf96d5e82586f",
+      "split": "test",
+      "stratum": "adjacent",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-66e1a76248f6ffa9",
+      "resume_id": "r-66e1a76248f6ffa9",
+      "split": "test",
+      "stratum": "background",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-77f4cc7c9ce5b7bf",
+      "resume_id": "r-77f4cc7c9ce5b7bf",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-78de483da29e6813",
+      "resume_id": "r-78de483da29e6813",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-8b8814495e0eff0b",
+      "resume_id": "r-8b8814495e0eff0b",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-97eb053e86859fa5",
+      "resume_id": "r-97eb053e86859fa5",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    },
+    {
+      "pair_id": "v-efe2e3580d948fa7__r-9d0ccd827cb93c8c",
+      "resume_id": "r-9d0ccd827cb93c8c",
+      "split": "test",
+      "stratum": "primary",
+      "vacancy_id": "v-efe2e3580d948fa7"
+    }
+  ],
+  "schema_version": "pilot-selection-v1",
+  "seed": "pilot-50-v1-2026-11-11",
+  "status": "awaiting_independent_annotation"
+}

@@ -1,0 +1,1273 @@
+{
+  "schema_version": "pilot-catalog-v1",
+  "dataset_version": "pilot-50-v1",
+  "base_commit": "f72886f",
+  "seed": "pilot-50-v1-2026-11-11",
+  "provenance": {
+    "vacancy": {
+      "archive_sha256": "2ff962e2cd269854e3675bda32f8aa9af4d1d62a694b618b98a6b6d56935a106",
+      "pdf_count": 55
+    },
+    "resume": {
+      "archive_sha256": "512ab9971ccee678002283bfca30cf2a90242e56dd396c120a8be81a92fd3175",
+      "pdf_count": 196
+    }
+  },
+  "documents": [
+    {
+      "kind": "resume",
+      "sha256": "01380fdda4662812302a54ae8163a795fa5baf820148dc88f2bb5226cce7c6f1",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "01a1b3c1d78a7a5eda997828a45ea782a299f1a22c4cf085247c7d5ab5777a18",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "073d77fd5838697e2bc220ac01d6a83d1171ef21f83869b427e15bdca4370727",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "092c9a50d4ff71cbba1f4fed7727a292be6629d26cab1083c9cbdb132ade9692",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0970c865ddf274fb865873a65043e348265796943ee7b38195166533f76c6b21",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0af119ba1465d18130671857b6ed85eb06f2048dbed2a77dc9cb0fcc65fba578",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0b1ef5396ec9a21a414654076c92823af265edc06dadb7c7b5958b91aa4326bd",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0bc9699a745963f0945f2d98bfc464182c9946f1ee2a326a79e0d3fd0095a78b",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0d2681a33f55f0bd9137f28cd532076c5a45ab54a8790497ed2fd6344b82e1c7",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0d2c6ebae5ad84b1d1fd5715106afce68cb0676ffe28bf6cfab02b356eb169e3",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0d9a830e93ed34827929f65cde5ce2914900b315477fce731d6843af1b42126e",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0e18844e1204ee851417a5473ccd5cf90a1abc8367b0904c9dcd92072a9d87ec",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0e23da66ee6393be9802f9cbb2badf191855afe9ae10f99890f88a7c221401a4",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0f02ef786fd15bd8100254f7cf7747ee226f0383303ecb7b9aaf2f7c0baaa5b9",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "0f70cd9bc31d239af4b2ade8236f15f197bba7e94d2a01fdd1093ecd05684d22",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "120a55f46c09d5626b69652a71d5ab7cbc45547b5c62331668b99ed667a72ef9",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "128bca1165b9e61676a308707de3ef0604cf2ceb56c72b241fc7050552aa032e",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "14bb2f8a7a4f4e6ff6885291b2b1292b63fca9f9789fa768aca329fe15a38145",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "14e634fccbdf7ce98456927a0210fffdc9e6efca67d0a3104d7e8f90545eea82",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "155134ab9c32d266135e3e4898a43d8d6159bf33f4154bb03bee9923f503347a",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "17a233d465ac783e6c894d1f9cca81c65042f53bbe229ded4fed7125187e122d",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "190ec8392e66b39237e1b103b6f6565a90fbec251e4a4eec43473844fe3a33ab",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "192502322bf2e6ebfb79203b65c7f388c3b1b262df6e6b66237438190814bda6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "194e8b46868894a63a7410c89fed3d7512b4094ed0c662d4fec77d1a6a1498bf",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1b1140ff30c16eaae7146b9f15dfaa7d6a6a46626120278f0cd43fba538fc9ad",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1d3e55a399b1c3489741bd74fd01cd76da659389784112b6be50c62f2c43632f",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1d539711135c0a9aac77b1302a76f3cdc81119f6dbe2bb9484c76c30212d4d62",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1dbf8de476a1dea230ebf6344bff8380056043a9cb000f0a09173f3eb494dc96",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1dceb01b01e37caf5f8dcf6d61bd1eccdc83f89e32d9cf6de4bc8e6cb5f6519e",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1e8d687c2a12619d029848afac839dc956d8d1b568b757aad907f2af750973d0",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "1f6752ade3ed06101ac58fb12185275ef2fae4a65519dc188eefcff87122ca82",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "2394b1a1e25b1d4d296620f7c4c6e839c4b409425e50497e842dd95d0fc2efd6",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "2435f893aeef5513ac724c6be45620aa3b94d4b6c9525584829206d33e39410e",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "25f8593e01b243d879e2fa88a4d6e7cb3325c2f1e168caee48e7bae0fee8f31e",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "270fc4c700d2a1b2f527dd272027b3eed6982c9d6a994438a14d9d783b270858",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "281d48d597299c567cfd79443a2a6de78df0ccef7aec980e06f747cb73cc844b",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "292550026c885b34509cff7654d172a6e52c6c40476583484e6891b86e77c93e",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "2a76ef53613da0dbbd127ac8460517e8b9f1c879d7c7139ea91be8c564245f02",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "2b7680954d133165266586f5f3367d597d5fb0e6c3929bb9a5d7762001f1e088",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "2c2d7bfa5d5a43c4eb010fe10ad326a771259a089e57b7cbd8af9251d7d104c2",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "30e8ca050abe8de44dbc10c257ea86a5f47e54c8dc31c7e4da1f89be440c63c0",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "3676587603ca9ce187d041d6aaa6c8cd2cf0d0102fdb2410681d82fd2b23fafc",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "3738682765cadad1f0adc5a7d152525b7f30d2989b935856fa5e79a385f5394c",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "3b2a60ec55dedf1eb004a65d8f41c853eef1c092625c1ddf8eca954958cb4aad",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "3dc2d8e25afe4c36711e46b7c823d08fd391718e2b653bfe1e46a0c2d5635e5e",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "3de9f36e042a3df7dcc1fe1917a3c792aa4e93ebc9f5d14f70899ed3add632d0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "41958ba5a8ac8ba372592487776857efc04feca8622db2da6c7d411e88e62333",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "43dd523c19fd991e0471abe9652f771ebe218aea01d25b15bac6b4b489e3b329",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "44161b7ce50ff0510c3d0319aae0feb03d49e50e875c91e4648965700e1d76c6",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4426d3e1d587250f2cb3a8d2b9fe37419536d7d24d71e05a8ca625acf8404796",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "450f8b50509d5cc0c6a628926b7d3c76afa25d9b083e1b4b271e7f34d3046f90",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "474702bee8b3431c5a0ad13d822c90bd1a9f7b340dee718bcb187597f718c718",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "49133e230697aeae2496c719bc01b39ed0a71a991b360fad1133f1b863798069",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "49c49b1dc889ee3eb2e670e3b865625002b9cf4d9dc8db95906ff684cef48f8d",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "49f1870f4fb8bb597a12345c1d30adbda90262bf9cf431cd7945ff28a5f0dda7",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4b9a4cca5f439cb5b9bcbc933c26c7fa0e726c872c0d74d38aaf38d94f7b1c77",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4c22fe50785bb8929833d858fe4c00b6ef99abcf9d19e7828a3faf75c0e283e6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4c3534e5b2dacdb5aa4077882d21776a1951f7def9605def164c3ac11d5adee3",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4c46c098faf87474ceb32ef3f0cc6c7cdecccbaa81abc20d60097fe7f769bf0b",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4d16ca3d2e8feb0bdd4c3543911e1ef357bac260e60cb744d45e7772be99fc50",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4e3704217d1658c237b9481922eb4d63176a0fa201d4359ca473c26f523191b4",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4e41ffe52382c45bfe6967ca593f66209075a898cc8fe0e3d64349e0e303621e",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "4fd8463fba423ca0d595d99c2ae7feb2170bc7940374225b000bcb7346b1625d",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "5229597676a5e834e75eab89926a20337af88dfa271382c7731efd105f2534ee",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "56bcf96d5e82586fd1328361d6e80b84141c4c30a2356470f73d1100f0a02ac6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "58945260803502e93921144299479875403ca4ea6ba4ece85fed14dcd6bc315d",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "5bde52220acbad82b7195ea995967bde69a2e3f45b3d3b7bb31639866c21f796",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "5e1ecee5c016485b500329098e43365068aa97a3577200ea122102852d0529ea",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "5f880b55ddea5d569610da0fc5f18c6ce4d9c8acbad026d3cfe7228b2ec83657",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6140ff5237b6dc4c1fef4b7af9bc7923b511738b43bfbd21f67479b30f8e8419",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6147b691185fb0dd6bdc6b4d0dc91e7ab89677ead7933958c080ce4d7e236a5a",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "61c97ffca7c8cfdafc5b6ee214b6e3b3bc995384208a9fcb343d75a0458405ed",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "62743e689f5acab657e38567dcec17fe79ba9f4640e3a424ee3f8d0c4547d607",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "66e1a76248f6ffa99bbc78906ddc4a3ae69ceed0902c3b9556ca5681153473ba",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "67b9bddd2941e49bdb840203c74c999c561a773ec79656129c862c082a2f072e",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "68054878f1461a7d3fe14f7fe3c8f45b50b79c71be566a202f9d2538174ef105",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6854b648a9785b688e5d6260e5c06b5832a504ce77fdbb34291a5fc57f9bc3be",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6b3e5e4980c5ee802a46afd516b39a5989a20a7decce4938afb3005fc0bcebd4",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6b5af31e266b08fcadebaad9ef84c43a391a6b12bd272fcf883b044278343ab6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "6beaaa78c919279381b8ede937512c8c7e3b46fcbbf4dae130ce759caf187817",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "71a865e052366aa373e896c5a1b1ad5bc2cdc16f0398a33f059cefa170e1b383",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "720345e2005247d664b379a54b7a522b38ed5e8c3fd55da3ec8a548e87985547",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "760351b418dda3e16408b6c4cbbc317e30fc8b522e7531a817853addd2d8db6b",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "76284c23870b44bf4cbc79cb157868a7a2c1ddfcf89ffcae9c5c6fbe8fe25872",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "7737719d77d65bbdc880985a0abe15e60f2e26d31f9a36fca486ac9f0d36dbe4",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "77f4cc7c9ce5b7bf0cbdf6ee98c2658b2fc1915898f76b3eab3ddf4791c8a602",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "78c3a4336e242297dced792ff2146d6d2560e3879735a190cf0f49ca6fb5ef44",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "78de483da29e6813a20776ff2c3b75060e94e58997987af6bfef3aef0100e288",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "791dbf2e47522cc9938774b77d003cf07c528979f2791bfc86decd1d1344f83c",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "79fea983663388927800fead4e602ef50142874a5fa7ab5e7ecf34bc591e8ee6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "7dd0e9d9d1c2a65e6c5e9b886bd0e4b31b5c9bdacdc9c7abcdb7e38948fb43d3",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "7f4206ad4c06f84376fffd3cb2a819aabbcf0f888a84be079da31b7166650864",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "7fc1a2b45dc9db6aed269818adb4e2e862bd5b6178c26122074f90fe22add0d6",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "85f71b1b6524cff75e826afb63b52152840c30c8399f1d8147c6a26958a3c7e2",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "86fda1bdbb769c0c0551eb557e9449c1f4d3bc7104b2278e5252124ce3a6ade6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "8770d724decb33563809890644a96cf6638860b048c3391948d4258454ba9606",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "87b451e167eb6734ee237db58a73645e1ce847983f813d300b389611660fed47",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "88d519a624a7e7c4047ba582a22c3e2700a867d4dc2b8ab0d07347ff3904be7b",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "8b8814495e0eff0b302910992d54a0cd85a9375314635d5c047b6e92b72a1364",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "8cafa4a83fab858a4e42fc625c39c7c4628f4b3efda002ccbd82a48a38002b21",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "8cb7108d7f9406dbeac6d7d3a6f5117b02cf37b006451904aa774df3c9a97cab",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "903be22e05ac066513029c8f0826bf3a060b74dda742c34cdbf33f6ef32f9bd2",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9238dda13254603cc21c32c7fb4c2e02542c29d12b26bea804e766e2c005eb6d",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "92e7dbc53507f98607d4ce2a75b9e59f03174989a2866866126d0eadd4027fbe",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9460e0188ff1ceec5a8204eaab3e1a82526cbac53cfe38c2d9cebe834902926a",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "948648b05b107baca11d7cd2d954dfebfbb191927c4edc1f3195b5b6d53e3cd4",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "94d59d6802e84d075aefacae97799587bf3862b933522c6dfa22ebc07499aa9c",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9650f0fd9d844fa1c1a7f3b21f5fdae1a96720a796589b6fa4d5df785d21a74e",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "97eb053e86859fa55092b29fb0b38276da70911def3052e890bb623d01cc9d71",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9855c5097bf30e7935860b0ac303f33122ec3d9f0b8d1205184f980cb46781c2",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9aeaab5dcdabb4c93c054dd363c3d307d19b1db1f2ce9c26031821f893c309c6",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9b90822dab852993111beb22f73b9d81e428f003e23bd3c1278c5e658bf7eb15",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9d0ccd827cb93c8ca04bfedda0999d80548ba7195f5a0d5cd920e4924610bbde",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9e510cf209cdb7326b5ec29083a837cf32045cab404a13ea68c7dde9ada2fd44",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "9f533e17e7372bf348c4a1b5e32c9e3698e6362a42a19c92d513e1e3a6151a86",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a0578c87efa3981face3b5e0bb4a8344273e2f3340a3a7b2c3bf7b773551eea5",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a2297da4a628e7b2478fc6f6fe230f3586db0c30e591c5958c810361074459e0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a24c08825b2ea9b8c598d4a39ad38c298b2b3376a50a8e3642198e340e088cb2",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a3667d19ff0312811e857f40929a1c9e145da055ea6ff6e5d7398e55a24781b9",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a3a7a521e2f07cafc17174596f5ba970870098c330913edbf710f3ba1086439c",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a44d569c0263a194d79871a4f1415837413d33af31ca312199ae9f38d5c2e0be",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a5d8cfd851f266e3d83a9e42042d825fc3905bb82d4f6a3e225c6135ed186749",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a625e05be1c12885a44a9faec1defece56c0c0f0537eda158578ceefab53b5dd",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a64406ad5395fddcf79f0602b388207ab9d1b7c5c3431f3154761dd37e9d643a",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a71f741573cd6d57fdc6aa5599070f7e93db195578b6d1f03d27184f97925bc0",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a85839fa38667194723bb21823ed1a6a9c1cd580ce3f181a6da212e9896c4b25",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a8d6f842b9b6468887653a41ea163953ad2d2c0a073fbc3b39850e207099d901",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "a9dee28d597a4dd6718b3e4d00050277389cb6cfcbb1a6e7f81a3fd22ee601f4",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "aaa1de7138de4b23fea9d1d308437c333c3674254c8a27c12ec4a2b51349d2de",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ab5c1243163166de9b60522d5d05855fd577203b7740d648286ae5836c197504",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ab9d55e5da8e385f65fc775266c4e533cd4d7b351bed3c7ad341aa76ed610817",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "acae7271700ea897f53d10b64d4e0a782e305842978ae6211007ea400951beb0",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "aef69cc6c1728c2345a90ef842da39d33fc6da2a1c739abdfb5d5d3375866e6d",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b0771c258a376c091c58f43de309695e265701e6786698bbf9de65b1e823b288",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b27b59a62c1c7f6c81aa0551e660ccff87c99fc34452d1f8ed8334798d4eede7",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b319cddc0733a7059acab60b6d80e5e5529dc901aa19b5d41326dfe6def8ba78",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b6c6621b9fbad44042166729c5dbc1612385dff5b07fe5a0c0371db459b9536e",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b73aadd73034c274508f49d7b6d1370b143f04fc0dfb0e39cdcfae0f9ed6ce2c",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b7d926b17a19321885e54fd806971c1e12008e91ca61cab6bf85a03c7d96381e",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "b8628bf7d3a5d05538a944bc941054291aec9a096cbddfa872af63bd9c716ff1",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ba5569ce219937514eed9dcc6477abb9d8fc47f1a7b5ae454cd12b0b0c9546a6",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "bb885fbd8c1d2267ce3be1d42c8e170df86fecc919953d3c61b06db3cac6a359",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "bbc90d21452113dcf0dceffcd19ced9f59489fe6eebe3f4d1eda427cc5e131e0",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "be0ec0ab1e24eda08647ff9ae982155defbfe01da9de7792eb6a83226900ba4c",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "be82697e8de69048aa8ea7eaaa6696bc56d253bf27a5a91ba4257df13cb0fc32",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "becc223e9fb35d204e1858a23264efaef4eb142267709eb192a67ca1b2ae5670",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c082678ccce479665b785185745085ec1f76ee14a89498c8d843a9fcc1223486",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c369292c5d0d7f373a5eeb69adeaee748b6c3fa6793cd94fed5d08cadc46facf",
+      "role": "cpp"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c4800644215ad492c6e9de0f111f854becb2112ea62018164883284748de9189",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c5b809d2fa7c6e3aa3ea63ce6467fd57875e7412e039e9d8e4605edf61ebec4d",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c7b065b82a3b0214f85b7f1af0a0fb041e4e4272b9dfa33390ed8fd348ace09e",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "c9e9a2406fa64c76d17757fcb5eb1e88d1d775852b94e352dcaffbb8750906e8",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "caef374ae94dcf29e91bdb2ea443b69ee9ab05fdfef1b0e1e00490d48f3955fb",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "cbbe8eca99b33be19e9ffbefc76b67c54848cfe18c1b4bcb25ccbfb13f0bf239",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "cbeac1d3f38232170a06b2aa31b92828dac7625a8f19a0d9ce25fbd8b51a1086",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "cece80e8f2ee42d10f10ac64dc4d16c17f2c0229373c740ce8b468ef1579edb0",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d022e72e57492ea1a7d5d8fc50258e6a5443c329f4798655b3690d982b9a834c",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d22b7ca8bfccfd8db57c15511e97d6986d6b77ce0fc913f1b2d998e5d3626bf0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d2c0894227990671e1d7724f6b2b4b8fac05394df77e4a36392f5440edaaa83b",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d36e06d121950444291d2a5e48c63d037b84190360df5682f6c09d8fcee1fdab",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d5acc91d083b98c39f467de52b80fdb839c12b2d4445437081743ca4494f8acc",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d7676e328e0b0f570a36d9d9373a8b457cd5029232471548b285869a3357afae",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "d7ff719dc194ee0498167c849f528f8ccb20eecc73d555279f13eda10de5341c",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "dedd09ad75835bd0b103ab1d9d974642d328f86359bd44ae65fd5183059181e0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e0d5f759c48d59fb72208e999b8c3b09591cc9ddc9139a6235ac5eaa6a674720",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e22d6f5f371d0d748fe9b3fc3fd07e3577e5992bb0bfb6b38a5e4a3c4e4167d3",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e37ec41e85ba718eb1c8b43ab366f6147ff637bacde6fac7157f22d55d708366",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e47ba9dc7ac734f68f4a5fb717317b0ef3130d866aa1fc3a88f43eeffcaf1e23",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e604fbae8056161fbb0de2fa09a4922c398cee7d881a059549bb997a2b0fe27d",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e61a6f3e85566b8a1fafc4c9027db994168e41e15887b19f67db5512ce8810ca",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e6c026ef97f3e1c77b9ae006afced578e08ce2b663076e449b5333239c24bb6c",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "e7b9dd1579f250abe62ef9a66125f2b55c516b481f249174f75e5ca851885a59",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ead103583c02598397f69a24e37896e2d7967529b9f4a473c858d54e5c7ca2e4",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ead6b27ef821bf994e4509b4145d848f53b254836565b8103410d1bd57d6deb0",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "eb05ff2679b5c9bd530ac205581360660671c6414d9c9e44efcdef5c65cad9d0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ee297b6abeb86b38be040b6cdaae30ba4c5ebf6a22178f266e32005026fdb9af",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "eeac03abb89f19787256bf3e83070a2c1b8160a47d1c21445cc7c32f256c83d0",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "ef5ad3e07d09f729437502bf87ce026e82b13603484652529a78a1f534b43874",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "efb3c91e8b7f9d8a194444e0aa7acf7613f1380702a66f1797823b3fe0ff11cb",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "efd910418d8ad8742e7ec71f89ffd41443765682ee39f8c7edc96ac17d923c03",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f09c01ccaa42da5d07c247d0e9b7138dd753eabceda6883233c53c12a1bde9e2",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f0cff0d89288687217ce9be8ad0f3255855ebf7ce45370fa0cce9c4386521e9e",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f288d1909d4ccc8a1032c983481df8caece023f876ff1eee5ef41a32c899577c",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f2898a8c1208438217276a12d8996ff67cab02555b6d8f5f68f7d48c9f7dff3d",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f5bf106e0adfacb7d6d7b00c9bb92facc5bdad4f0e3218eca03caad2fed1ac7e",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f7a018882e4784d13826688ee05583255fb7f5de9969b895ae8f979c8e9c72bc",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f7b7f28680ea9ffd1047c0e2e0cad088213b26d5a88a473878ecd8adf50c41d0",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f7c28641f05bc4ddd5f35b2050043fb6ad69683db5685aef694f4cb795934433",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f87b81c3909fb47bffa67a55ac1bdf8fbfeb7f0fd0ecb648cfc83fdaa71569dd",
+      "role": "other"
+    },
+    {
+      "kind": "resume",
+      "sha256": "f9ddbf5fd506640ab61aa99d97bc7b7b01d47bbbbdebf2c7ebc10840a823f9c6",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fa002e2bb2a05b049781fbee95c81e1209163a8d80102d0c9ad08de9f03e9628",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fad2f04b83e7deed5754f97ae6119b61131196db65d63bad62955a2f286102f2",
+      "role": "data-science"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fc1084cf7152b1239a459479bb3807ed60389978a88ecc24cdc6244a1e18ffa4",
+      "role": "devops"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fc4b823af79911145ce971fb1fc801521fb8e47446ab02846382079c68ad8635",
+      "role": "frontend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fcfa8d17f8ab2769e95315505ec805f4ab9fc6ea8c675dc9fda1584dbb6effbe",
+      "role": "backend"
+    },
+    {
+      "kind": "resume",
+      "sha256": "fdfd19d87b3269521e9616ecf5a657ce5ee4343a4afca655bbae614dbfb9cce8",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "01296027158fc0c7d21367ea82644539b9035dd0d8ea7a2d3ca330438afdeba1",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "03410c39685eeaa4152c32cae84cdffc49c9a364d9793e437473d83f4a885b72",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "095a76417ab13152482b6b52660048fa0660a36e751fae2befd6e448942cb4e5",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "0a4f3013c22af162a161c1370c654a59d4694bee1e2fbe065be0fa4779eff78b",
+      "role": "data-science"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "0bcddec95ea3ea37b338a1a7d3f2eea05c97ac16042339e4718288b4302b90b6",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "0d7fa2aaa3faba53d7da8f9b3b097d3d5e7d711e7c9aa794392898c75b1639bc",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "0e3308e6b628b16f4cbe74c31ccd579bf38ebbb15b0cd23d8a6fddb7a1ede322",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "1349adbd3c5ccdbdb59a3af2d698839de2d331d4210fcb61cf47661bb38bf459",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "163ed1cc7d74ed8b9d860dbaef81872b72c141e4b4eb96fd58bbaf0fa3651859",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "17b1073f8cabf4cc3d54c22a019c9eb118b5a81f5596903262c683511af9aadf",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "190c68ba361fe9b9d527d194174de6067d910809231c2607aeebada1c722f8f2",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "21c19bbb9f5144ecbbf9f0d6edfdc6d1cb1f0f1214f59b6a6b47acf67223dae5",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "2320faacdeae73580a190b808e6980b8ccab28c588a6bf06465dc936803de7c3",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "23eb5e3a23d579b052b6398f87db1d41e6756c2f92ffc45b1362b1f74e8ca096",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "25930fce25f931c19c6b09c87604400779ad5e603098a448954ebc8e19394610",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "2e6700022b6c0ae19450a8286d97119a0554566fea1cff083c70534718a7424b",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "3f40d0db5f12620719d1ca25405865c538dbb8c0be955c7cf057110ef1662462",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "44e01693be70d7e6b18603edae5c44176225b1eaf4fd466a7586549d128c6ebf",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "4bf2bd0acac5839ae08a7859c392c35b9ea05b1fbaf772870e7f75fae7d1fc68",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "5209ea9d0b7562decd5d2afee834f67591dcf214e8686d3246f6be96d164b784",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "55b583723cd9e95e807184b4970bc88da9b6f72c77e226e5ec61cb9abee6d314",
+      "role": "data-science"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "5809eec0bfe914de53f9c333790895058b1684ee8e57238605a536a809f6a1ef",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "5c70c558ecffb2334e75a2f1dd1658b1355c5c21d10910ec26de915c3f790c30",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "5ecf15f11970805edb57ae61ed1971c6c3306dfa9c67583d54fb0a5c928c2f99",
+      "role": "data-science"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "67c8a633eeebd60a904e5027f1303e2019b550ee88fbbe38f4ef659544d4c496",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "708c6d557aab817ca8354c1c72dc289c463fb751ddfacf60f119d11d067ba84c",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "7be0869afc1654258cde5edf4d8ddcbea0b2272a32fa3342fe7663f6b415a475",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "827aac016c940f197ebf0bcfe9a198fecde6452250bd96bf26b2741a0b18f811",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "89f3c437e5ab4b56a54bd83e562e65f4c0381735313715cf08f3b9d704ce3a9f",
+      "role": "cpp"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "91cd83641bad2095be35e630a8a25f4fbc04388dc4049f440913d104e3493bd6",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "96b776017c6721e5773b4f8d2d020983eb5fab1c8b3d65d19404c71dd305fa40",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "9b8007687f5798da4e8d36a8c60667df650dcd5b95ee309dd12b7116c903b1cb",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "9e218efd0ac8b46cee078fffc0d672fc2248807907acb6ee3f5e846cb4d5486e",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "a2319bd3670ddd6c91df3e83b94c9fc2708321fec13d409a3d1b1009c06f151b",
+      "role": "cpp"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "a3c2050f1bdc527d8ae59087831fef01a360f4b54844f22a3546cb3964734b1d",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "b07a0eb2b4f2cca38ad77450b57a26b842968eedeb45c4b67785c1459d941279",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "b545f79a075ddcb8b561fdb4aa7b07659b6cdd7f0d73147832ba73ba325da1a3",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "b69a18678f66f0ee864235ce3ce62baf806b805aeec7acff3ca874a12b0b21a5",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "b84a406deac4c7c85bfeafad335979fe7fc439dc659560df319edde0c9cb8971",
+      "role": "devops"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "bf2bfcb9ff28d6c54a59bfbcce9fadc2fafc7ce8860cb7e4c1b8357dc7b5103d",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "c0ceb4bd36e3075747311ac984f0f2df1934194830f1c13f0589ebfa45f61170",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "c1b774ec970ee6c40940e84b06e268734ef0d792f40efe90df1f8220b58bc0cc",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "c421c3c5ee80d1c38cfd3bd224a79444c7b38e389651eedc300858bbeb766ab0",
+      "role": "cpp"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "c46c582fe74682111d3e98d5028685b30e244eca59fbb5ef0b7076d613cc8727",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "c9ff4e88c54595f00d4602c582fa780d1fdc0afc96ef97541e134bfb49e237ab",
+      "role": "cpp"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "d96bc3edbdc91f39740516b579782699bf9dfd3d96640b64c2ade42b86af5987",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "e01ddfa85ef3951b7ee835a1b08312e3e57c3eb0037b01bcd141d67b7a838a67",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "e21ef44bd21c694e1b7355533a5f83734d04e8c13e95d19daabc2489518c6e0e",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "e2ce9d1c13d682b606e62960db63b6ce40e56d9e933d97ae6415a7ed14eedfb8",
+      "role": "backend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "eb593861106c85cc3059444c661f4093e1d78e8937ac4b4a3ecd6cbbdc77f6ef",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "ece3173b1d582be4e9fcb6c2fcf1523d04aa8f4c6b7428b65479536f4e7f1e29",
+      "role": "data-science"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "efe2e3580d948fa776917e31713087cb43358d782f26edade36ba9fb9f6f6164",
+      "role": "frontend"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "f54bf81ec6fa634e0c5b5baba5938dd8e72c16f376ae1f901c8a70281e36827b",
+      "role": "data-science"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "f57ca065af2f3d5a95ca511284704a2435eac40cc7cdf99438d0fef0739b9792",
+      "role": "other"
+    },
+    {
+      "kind": "vacancy",
+      "sha256": "fd45a042169d8288a0c576ac59548c470c5c06db37088b515e18e4953afbf56b",
+      "role": "other"
+    }
+  ]
+}
