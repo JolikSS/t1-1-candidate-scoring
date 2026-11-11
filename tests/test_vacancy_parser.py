@@ -101,7 +101,8 @@ class VacancyParserTests(unittest.TestCase):
         parsed = self.parse("Python-разработчик\nРазработка API на Python и SQL")
         self.assertEqual(parsed.requirements, "")
         self.assertEqual(parsed.responsibilities, "")
-        self.assertEqual(parsed.description, "")
+        self.assertEqual(parsed.description, "Разработка API на Python и SQL")
+        self.assertIn("unstructured_text", parsed.parse_details["warnings"])
         self.assertEqual(parsed.required_skills, [])
 
     def test_required_skills_exclude_responsibilities_and_conditions(self):
