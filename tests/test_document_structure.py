@@ -197,7 +197,7 @@ class DocumentStructureTests(unittest.TestCase):
                 self.assertEqual(parsed.requirements, "Python")
                 self.assertEqual(parsed.responsibilities, "Разработка API")
                 self.assertEqual(parsed.required_skills, ["Python"])
-                self.assertIn("Обучение Docker", parsed.description)
+                self.assertNotIn("Обучение Docker", parsed.description)
 
     def test_question_number_and_pdf_bullet_headings(self):
         parsed = self.vacancy(

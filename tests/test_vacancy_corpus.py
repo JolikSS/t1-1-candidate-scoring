@@ -49,9 +49,37 @@ class VacancyCorpusTests(unittest.TestCase):
         self.assertIn("Docker", self.vacancies["52247023.pdf"]["preferred_skills"])
         self.assertNotIn("Docker", self.vacancies["52247023.pdf"]["required_skills"])
 
-    def test_only_two_documents_have_no_explicit_responsibilities(self):
+    def test_only_one_document_has_no_explicit_responsibilities(self):
         actual = {file for file, v in self.vacancies.items() if not v["responsibilities"]}
-        self.assertEqual(actual, {"52042515.pdf", "52145323.pdf"})
+        self.assertEqual(actual, {"52042515.pdf"})
+
+    def test_ml_duties_from_export_are_preserved(self):
+        v = self.vacancies["52145323.pdf"]
+        self.assertIn("Разрабатывать эвристические алгоритмы и ML-модели", v["responsibilities"])
+        self.assertIn("Разрабатывать ETL-пайплайны", v["responsibilities"])
+        self.assertNotIn("missing_responsibilities", v["parse_details"]["warnings"])
+
+    def test_employment_metadata_is_excluded_but_seniority_is_kept(self):
+        v = self.vacancies["52201844.pdf"]
+        self.assertNotIn("Формат работы", v["requirements"])
+        self.assertNotIn("График работы", v["description"])
+        self.assertIn("middle senior", v["description"])
+        self.assertIn("JavaScript и TypeScript", v["requirements"])
+
+    def test_mixed_sections_keep_workflow_and_technical_stack(self):
+        prototype = self.vacancies["52201870.pdf"]
+        self.assertIn("определяет помещения и их площади", prototype["description"])
+        self.assertNotIn("Работа в России Вакансии", prototype["description"])
+        devops = self.vacancies["52201897.pdf"]
+        self.assertIn("k8s, GitLab CI", devops["description"])
+        self.assertNotIn("ДМС", devops["description"])
+
+    def test_preferred_paragraph_is_separated_from_required_experience(self):
+        v = self.vacancies["52192677.pdf"]
+        self.assertIn("Знание JavaScript", v["requirements"])
+        self.assertNotIn("Будет вашим преимуществом", v["requirements"])
+        self.assertNotIn("Опыт работы с jQuery", v["requirements"])
+        self.assertIn("Опыт работы с jQuery", v["description"])
 
     def test_condition_sections_do_not_enter_requirements(self):
         for v in self.vacancies.values():
