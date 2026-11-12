@@ -5,12 +5,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from Parser.document_structure import compile_headings, match_heading, normalize_line, select_job_title, title_candidate
+from Parser.document_structure import (
+    BULLET, COMPANY, CONTACT, NOISE, compile_headings, match_heading,
+    normalize_line, select_job_title, title_candidate,
+)
 from Parser.vacancy_input import VacancyParseError, clean_vacancy_lines, extract_vacancy_text
 from Parser.vacancy_requirements import classify_vacancy_skills
 from scorer.expression_catalog import CATALOG_VERSION, DEFAULT_SKILLS
 
-PARSER_VERSION = "vacancy-rules-2.0"
+PARSER_VERSION = "vacancy-rules-2.1"
 
 
 SKILL_CATALOG = list(DEFAULT_SKILLS)
@@ -86,6 +89,36 @@ HEADING_VARIANTS = {
     "conditions": (r"(?:что\s+)?мы\s+(?:предлагаем|готовы\s+предложить)",),
 }
 HEADINGS = compile_headings(SECTION_ALIASES, HEADING_VARIANTS)
+TITLE_BODY_START = re.compile(
+    r"^(?:(?:наша?|наши|у\s+нас|предстоит|это)\b|"
+    r"(?:тестирование|сопровождение|внедрение|ведение|обеспечение|участие|"
+    r"работа|создание|поддержка|настройка)\b|"
+    r"(?:you|our|responsible|develop(?:ing)?|build(?:ing)?|maintain(?:ing)?|"
+    r"support(?:ing)?|design(?:ing)?|work(?:ing)?)\b)", re.I,
+)
+
+
+def _title_continuation(title: str, line: str, known_terms: set[str], *, exported: bool) -> bool:
+    """Keep short title qualifiers, stopping at evidence of document body text."""
+    if (match_heading(line, HEADINGS) or BULLET.match(line) or COMPANY.search(line)
+            or CONTACT.search(line) or PHONE.search(line) or NOISE.match(line)
+            or TITLE_BODY_START.match(line)
+            or re.match(r"^(?:село|город|пос[её]лок|деревня|г\.|рп\.)\s", line, re.I)):
+        return False
+    if line.endswith((".", "!", "?", ";", ":")) or len(title + " " + line) > 240:
+        return False
+    structural_wrap = (
+        title.count("(") > title.count(")") or line.startswith("(") or title.endswith(",")
+        or (title.endswith("/") and (exported or line.split()[0].casefold() in known_terms))
+    )
+    return structural_wrap or (line[:1].islower() and len(line.split()) <= 6)
+
+
+def _title_warnings(title: str, warnings: list[str]) -> list[str]:
+    warnings = [warning for warning in warnings if warning != "possible_wrapped_title"]
+    if title.endswith(("/", ",", "(")) or title.count("(") > title.count(")"):
+        warnings.append("possible_wrapped_title")
+    return warnings
 
 
 def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
@@ -114,7 +147,7 @@ def _vacancy_title(lines: list[str], catalog: list[str]) -> tuple[str, dict, lis
     # Print exports label the following line as the actual vacancy title. This
     # also covers professions outside the finite role-word dictionary.
     export = re.compile(r"^(?:обновлена?|опубликована?)\b.*№\s*\d+", re.I)
-    location = re.compile(r"^(?:село|город|пос[её]лок|деревня|г\.|рп\.)\s", re.I)
+    known_terms = {term.casefold() for term in catalog}
     for index, line in enumerate(lines[:5]):
         if not export.search(line) or index + 1 >= len(lines):
             continue
@@ -123,34 +156,20 @@ def _vacancy_title(lines: list[str], catalog: list[str]) -> tuple[str, dict, lis
         if not title_candidate(title, explicit=True):
             break
         for continuation in lines[index + 2:index + 5]:
-            if match_heading(continuation, HEADINGS) or location.match(continuation):
-                break
-            wrapped = (
-                title.endswith(("/", ",")) or title.count("(") > title.count(")")
-                or continuation.startswith("(") or continuation[:1].islower()
-            )
-            if not wrapped or len(title + " " + continuation) > 240:
+            if not _title_continuation(title, continuation, known_terms, exported=True):
                 break
             title += " " + continuation
-        return title, {"method": "export_title", "line_number": index + 2, "candidate_count": 1}, []
+        return title, {"method": "export_title", "line_number": index + 2, "candidate_count": 1}, _title_warnings(title, [])
     title, details, warnings = select_job_title(lines, HEADINGS, known_terms=catalog)
     number = details.get("line_number", 0)
     if title and number:
         for continuation in lines[number:number + 3]:
             if title.endswith(" " + continuation):
                 continue
-            if match_heading(continuation, HEADINGS) or location.match(continuation):
-                break
-            first_word = continuation.split()[0].casefold()
-            if not (title.count("(") > title.count(")") or continuation.startswith("(")
-                    or continuation[:1].islower()
-                    or (title.endswith("/") and first_word in {s.casefold() for s in catalog})):
-                break
-            if len(title + " " + continuation) > 240:
+            if not _title_continuation(title, continuation, known_terms, exported=False):
                 break
             title += " " + continuation
-        if not title.endswith(("/", ",", "(")):
-            warnings = [w for w in warnings if w != "possible_wrapped_title"]
+        warnings = _title_warnings(title, warnings)
     return title, details, warnings
 
 
