@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 
 from scorer.skill_matching import canonical_skill_key, find_skill_mentions
 
-
 QUALIFIERS = {
     "not_required": re.compile(
         r"\b(?:не\s+(?:требу(?:ется|ются)|обязател(?:ен|ьн(?:о|а|ы))|"
@@ -17,7 +16,8 @@ QUALIFIERS = {
         r"(?:no|without)\s+(?:experience|knowledge|skills)(?:\s+required)?)\b", re.I,
     ),
     "preferred": re.compile(
-        r"\b(?:буд(?:ет|ут)\s+(?:плюсом|преимуществом)|желател(?:ен|ьн(?:о|а|ы|ый|ая|ые))|"
+        r"\b(?:буд(?:ет|ут)\s+(?:(?:большим|дополнительным)\s+)?(?:плюсом|преимуществом)|"
+        r"(?:большой|дополнительный)\s+плюс|(?:явля(?:ется|ются)\s+)?преимуществом|желател(?:ен|ьн(?:о|а|ы|ый|ая|ые))|"
         r"приветству(?:ется|ются)|nice[\s-]+to[\s-]+have|preferred|optional)\b", re.I,
     ),
     "required": re.compile(
@@ -67,11 +67,15 @@ def _classify_clause(text: str, default: str, catalog: list[str]) -> list[tuple[
         marker = _qualifier(item, catalog)
         if marker:
             status, follows_skill = marker
-            if follows_skill and inherited is None:
+            local_marker = any(
+                _qualifier(group, catalog) for group in re.findall(r"\(([^()]*)\)", item)
+            )
+            if follows_skill and inherited is None and not local_marker:
                 # 'Python, SQL are preferred': apply the trailing qualifier to
                 # preceding items that do not yet have an explicit qualifier.
                 classified = [(previous, status, "list_marker") for previous, _, _ in classified]
-            inherited = status
+            if not local_marker:
+                inherited = status
             rule = "explicit_marker"
         else:
             status = inherited or default

@@ -1,7 +1,7 @@
 """Versioned aliases and activity verbs, with no external dependencies."""
 
 EXPRESSION_RULES_VERSION = "expressions-1.1"
-CATALOG_VERSION = "professional-catalog-1.1"
+CATALOG_VERSION = "professional-catalog-1.2"
 
 # One source of defaults for TF-IDF and the integrated Parser.
 DEFAULT_SKILLS = (
@@ -14,9 +14,21 @@ DEFAULT_SKILLS = (
     "Agile", "Scrum", "1C", "SAP", "English", "Ukrainian", "Russian",
     "Hadoop", "Spark", "Flink", "Doris", "Kudu", "Iceberg", "Airflow", "DWH", "Data Lake",
     "ETL", "ELT", "Kotlin", "NiFi", "ClickHouse", "Helm", "Prometheus", "Grafana", "IaC",
+    "Golang", "PHP", "Laravel", "Swift", "Objective-C", "Assembler", "Lua", "Delphi",
+    "Oracle", "SQLite", "Trino", "dbt", "Hive", "HDFS", "Memcached", "gRPC",
+    "Zabbix", "ELK", "Nginx", "DHCP", "LDAP", "Jira", "Confluence", "GitOps", "Argo CD",
+    "ROS", "ROS2", "SCADA", "АСУ ТП", "КИПиА", "ПЛК", "CoDeSys", "TIA Portal",
+    "AutoCAD", "Revit", "Figma", "Jest", "LLM", "RAG", "OpenCV", "MLflow", "HuggingFace",
+    "Qdrant", "Milvus", "FAISS", "Ollama", "vLLM", "OpenPyXL", "Computer Vision",
 )
 
 SKILL_ALIASES = {
+    "english": ("английский", "английского", "английским"),
+    "1c": ("1с", "1c:предприятие", "1с:предприятие"),
+    "golang": ("язык go", "языка go", "на go", "в go", "go разработчик", "go разработчиков"),
+    "асу тп": ("асутп",),
+    "huggingface": ("hugging face",),
+    "computer vision": ("компьютерное зрение", "компьютерного зрения", "компьютерном зрении"),
     "python": ("python 2", "python 3", "python2", "python3"),
     "javascript": ("js", "java script"),
     "postgresql": ("postgres",),
@@ -25,8 +37,8 @@ SKILL_ALIASES = {
     "ms isa": ("microsoft isa",),
     "fastapi": ("fast api",),
     "rest api": ("rest apis", "restful api", "restful apis"),
-    "c++": ("cpp", "c plus plus"),
-    "c#": ("c sharp", "csharp", "c-sharp"),
+    "c++": ("cpp", "c plus plus", "с++"),
+    "c#": ("c sharp", "csharp", "c-sharp", "с#"),
     "node.js": ("nodejs", "node js"),
     ".net": ("dotnet", "dot net"),
     "ci/cd": ("ci cd", "ci-cd"),
