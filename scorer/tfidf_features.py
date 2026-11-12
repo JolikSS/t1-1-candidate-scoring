@@ -7,7 +7,7 @@ from functools import lru_cache
 from scorer.lemmatization import EXPRESSION_PROFILE, FEATURE_PROFILES, LEMMA_PROFILE, lemma
 from scorer.professional_expressions import extract_professional_expressions
 
-TFIDF_PREPARATION_VERSION = "tfidf-rules-1.1"
+TFIDF_PREPARATION_VERSION = "tfidf-rules-1.2"
 STOP_WORDS = frozenset(
     {
         "и",

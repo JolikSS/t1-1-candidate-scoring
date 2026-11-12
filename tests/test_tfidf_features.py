@@ -110,6 +110,37 @@ class TfidfFeatureTests(unittest.TestCase):
         ratio = row[0, vocabulary["skill:python"]] / row[0, vocabulary["skill:docker"]]
         self.assertAlmostEqual(ratio, 1 + math.log(3))
 
+    def weight_ratio(self, fitted, row, numerator, denominator):
+        vector, vocabulary = fitted.matrix[row], fitted.vectorizer.vocabulary_
+        return vector[0, vocabulary[numerator]] / vector[0, vocabulary[denominator]]
+
+    def test_description_does_not_repeat_requirements_and_responsibilities(self):
+        # Shaped like a parsed vacancy: the description is built from the other sections.
+        vacancy = {"id": "v", "requirements": "Python", "responsibilities": "Docker",
+                   "description": "Python Docker Kafka"}
+        resume = {"resume_id": "r", "anonymized_text": "Python Docker Kafka"}
+        fitted = fit_corpus_tfidf([resume], vacancy, [resume], [vacancy])
+        row = fitted.vacancy_index
+        self.assertAlmostEqual(self.weight_ratio(fitted, row, "skill:python", "skill:kafka"), 1 + math.log(2))
+        self.assertAlmostEqual(self.weight_ratio(fitted, row, "skill:docker", "skill:kafka"), 1.0)
+
+    def test_independent_description_is_kept_whole(self):
+        vacancy = {"id": "v", "requirements": "Python", "description": "Docker Kafka"}
+        resume = {"resume_id": "r", "anonymized_text": "Python Docker Kafka"}
+        fitted = fit_corpus_tfidf([resume], vacancy, [resume], [vacancy])
+        self.assertAlmostEqual(self.weight_ratio(fitted, fitted.vacancy_index, "skill:docker", "skill:kafka"), 1.0)
+        self.assertAlmostEqual(
+            self.weight_ratio(fitted, fitted.vacancy_index, "skill:python", "skill:kafka"), 1 + math.log(2)
+        )
+
+    def test_experience_inside_anonymized_text_is_counted_once(self):
+        parsed = {"resume_id": "p", "experience": "Python", "anonymized_text": "Python\n\nDocker"}
+        legacy = {"resume_id": "l", "experience": "Python", "anonymized_text": "Docker"}
+        fitted = fit_corpus_tfidf([parsed, legacy], {"id": "v", "description": "Python Docker"}, [parsed, legacy], [])
+        parsed_row, legacy_row = fitted.candidate_indices
+        self.assertAlmostEqual(self.weight_ratio(fitted, parsed_row, "skill:python", "skill:docker"), 1.0)
+        self.assertAlmostEqual(self.weight_ratio(fitted, legacy_row, "skill:python", "skill:docker"), 1 + math.log(2))
+
     def test_repeated_current_inputs_do_not_inflate_the_fit_corpus(self):
         vacancy = {"id": "v", "description": "Python"}
         resume = {"resume_id": "r", "anonymized_text": "Python"}
