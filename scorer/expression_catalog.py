@@ -1,11 +1,13 @@
 """Versioned aliases and activity verbs, with no external dependencies."""
 
 EXPRESSION_RULES_VERSION = "expressions-1.1"
-CATALOG_VERSION = "professional-catalog-1.1"
+CATALOG_VERSION = "professional-catalog-1.4"
 
 # One source of defaults for TF-IDF and the integrated Parser.
 DEFAULT_SKILLS = (
-    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", ".NET", "SQL", "PostgreSQL", "MySQL",
+    "Windows", "Ubuntu", "CentOS", "Bootstrap", "Postman", "SQLite", "Matplotlib", "GitHub Actions", "aiogram", "Tailwind CSS", "Sass", "jQuery", "Elasticsearch", "Jest", "Oracle", "Cisco", "Swagger", "Proxmox", "MikroTik",
+    "Nginx", "Pytest", "Zabbix", "Redux", "Jira", "SQLAlchemy", "SCSS", "Figma", "Celery", "Vite", "Webpack", "Confluence", "Django REST Framework", "ELK", "LLM",
+    "PHP", "Nuxt", "Laravel", "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", ".NET", "SQL", "PostgreSQL", "MySQL",
     "MongoDB", "Neo4j", "Linux", "Windows Server", "Docker", "Kubernetes", "Git", "FastAPI", "Django",
     "Flask", "React", "Angular", "Vue", "Node.js", "REST API", "GraphQL", "Redis", "Kafka", "RabbitMQ",
     "AWS", "Azure", "GCP", "Terraform", "Ansible", "Jenkins", "GitLab CI", "CI/CD", "HTML", "CSS",
@@ -17,11 +19,22 @@ DEFAULT_SKILLS = (
 )
 
 SKILL_ALIASES = {
+    "tailwind css": ("tailwind", "tailwindcss"),
+    "github actions": ("github-actions",),
+    "elasticsearch": ("elastic search",),
+    "proxmox": ("proxmox ve",),
+    "mikrotik": ("микротик",),
+    "1c": ("1с",),
+    "django rest framework": ("drf",),
+    "elk": ("elk stack",),
+    "llm": ("large language model", "large language models"),
+    "php": ("php 7", "php 8", "php7", "php8"),
+    "nuxt": ("nuxt.js", "nuxtjs", "nuxt js"),
     "python": ("python 2", "python 3", "python2", "python3"),
     "javascript": ("js", "java script"),
     "postgresql": ("postgres",),
     "ms exchange": ("microsoft exchange",),
-    "sql": ("ms sql", "microsoft sql", "sql server", "ms sql server", "microsoft sql server"),
+    "sql": ("mssql", "ms sql", "microsoft sql", "sql server", "ms sql server", "microsoft sql server"),
     "ms isa": ("microsoft isa",),
     "fastapi": ("fast api",),
     "rest api": ("rest apis", "restful api", "restful apis"),

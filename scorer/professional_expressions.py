@@ -75,7 +75,11 @@ def _alias_pattern(alias: str) -> str:
             expression += (r"\s*" if index else "") + re.escape(part)
             expression += r"\s*" if index < len(parts) - 1 else ""
         else:
-            expression += re.escape(part).replace("е", "[её]")
+            if part.isascii():
+                twins = {"a": "а", "c": "с", "e": "е", "o": "о", "p": "р", "x": "х", "k": "к", "m": "м", "t": "т", "b": "в", "h": "н"}
+                expression += "".join("[" + ch + twins[ch.lower()] + "]" if ch.lower() in twins else re.escape(ch) for ch in part)
+            else:
+                expression += re.escape(part).replace("е", "[её]")
     return r"(?<![\w.])" + expression + r"(?![\w+#]|\.(?=\w))"
 
 
