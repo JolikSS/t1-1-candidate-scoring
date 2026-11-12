@@ -18,28 +18,51 @@ def _repeat(value: str, count: int) -> str:
     return "\n".join([value] * count)
 
 
+def _contains(text: str, part: str) -> bool:
+    return bool(part.strip()) and part.strip() in text
+
+
+def _excluding(text: str, parts: list[str]) -> str:
+    """Drop fragments already counted as separate fields; the rest of the text is kept."""
+    for part in parts:
+        if _contains(text, part):
+            # A line break keeps the remaining neighbours from forming a new phrase.
+            text = text.replace(part.strip(), "\n", 1)
+    return text
+
+
 def _weighted_vacancy(vacancy: dict[str, Any]) -> str:
+    requirements = str(vacancy.get("requirements", ""))
+    responsibilities = str(vacancy.get("responsibilities", ""))
+    # A parsed description repeats requirements and responsibilities; count them once
+    # more only through their own fields, keep the rest of the description.
+    description = _excluding(str(vacancy.get("description", "")), [requirements, responsibilities])
     return "\n\n".join(
         [
             _repeat(str(vacancy.get("title", "")), 3),
             _repeat(", ".join(vacancy.get("required_skills", [])), 3),
             ", ".join(vacancy.get("preferred_skills", [])),
-            _repeat(str(vacancy.get("requirements", "")), 2),
-            str(vacancy.get("responsibilities", "")),
-            str(vacancy.get("description", "")),
+            _repeat(requirements, 2),
+            responsibilities,
+            description,
         ]
     )
 
 
 def _weighted_resume(resume: dict[str, Any]) -> str:
     skills = " ".join(resume.get("skills", []))
+    text = str(resume.get("anonymized_text", ""))
+    experience = str(resume.get("experience", ""))
+    education = str(resume.get("education", ""))
+    # Parsed anonymized_text already contains experience and education; adding them
+    # again tripled the experience weight. Separate fields count only when not inside it.
     return "\n\n".join(
         [
             _repeat(str(resume.get("title", "")), 3),
             _repeat(skills, 3),
-            _repeat(str(resume.get("experience", "")), 2),
-            str(resume.get("education", "")),
-            str(resume.get("anonymized_text", "")),
+            "" if _contains(text, experience) else _repeat(experience, 2),
+            "" if _contains(text, education) else education,
+            text,
         ]
     )
 

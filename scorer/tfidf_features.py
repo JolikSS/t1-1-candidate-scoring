@@ -2,11 +2,12 @@
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
 from scorer.lemmatization import EXPRESSION_PROFILE, FEATURE_PROFILES, LEMMA_PROFILE, lemma
 from scorer.professional_expressions import extract_professional_expressions
 
-TFIDF_PREPARATION_VERSION = "tfidf-rules-1.0"
+TFIDF_PREPARATION_VERSION = "tfidf-rules-1.2"
 STOP_WORDS = frozenset(
     {
         "и",
@@ -78,13 +79,20 @@ _WORD = re.compile(r"[^\W_]+(?:[+#][^\W_]*)*", re.U)
 _BOUNDARY = re.compile(r"[\n;.!?]")
 
 
+@lru_cache(maxsize=1)
+def _lemma_stop_words() -> frozenset[str]:
+    """Stop words as lemmas, so that "опыта" does not come back as "опыт"."""
+    return STOP_WORDS | frozenset(lemma(word) for word in STOP_WORDS)
+
+
 def _words(fragment: str, profile=EXPRESSION_PROFILE) -> list[str]:
     result = []
     for part in _BOUNDARY.split(fragment):
         words = [match.group().casefold().replace("ё", "е") for match in _WORD.finditer(part)]
         words = [word for word in words if word not in STOP_WORDS and not word.isdecimal()]
         if profile == LEMMA_PROFILE:
-            words = [lemma(word) for word in words]
+            stop_lemmas = _lemma_stop_words()
+            words = [word for word in map(lemma, words) if word not in stop_lemmas]
         result.extend("word:" + word for word in words)
         result.extend("phrase:" + left + " " + right for left, right in zip(words, words[1:]))
     return result
