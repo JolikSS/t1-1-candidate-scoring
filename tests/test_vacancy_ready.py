@@ -84,8 +84,15 @@ class VacancyReadyTests(unittest.TestCase):
         self.assertEqual(result.preferred_skills, ["Qdrant"])
 
     def test_no_technical_substring_false_positives(self):
-        result = parse_vacancy_text("Developer\nТребования: Node.js, JavaScript, SQLAlchemy")
-        self.assertEqual(result.required_skills, ["JavaScript", "Node.js"])
+        result = parse_vacancy_text(
+            "Developer\nТребования: Node.js, JavaScript, SQLAlchemy"
+        )
+        self.assertEqual(
+            result.required_skills,
+            ["JavaScript", "Node.js", "SQLAlchemy"],
+        )
+        self.assertNotIn("Java", result.required_skills)
+        self.assertNotIn("SQL", result.required_skills)
 
     def test_cyrillic_cplusplus_and_non_it_terms(self):
         result = parse_vacancy_text("Инженер\nТребования: С++, SCADA, АСУТП, КИПиА")
