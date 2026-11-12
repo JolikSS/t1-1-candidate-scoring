@@ -45,7 +45,7 @@ class VacancyParserTests(unittest.TestCase):
         self.assertEqual(parsed.responsibilities, "Разработка API Поддержка сервисов")
         self.assertEqual(
             parsed.description,
-            "Python SQL Разработка API Поддержка сервисов Удалённая работа Гибкий график",
+            "Python SQL Разработка API Поддержка сервисов",
         )
 
     def test_contact_and_company_sections_stop_collection(self):
@@ -67,7 +67,7 @@ class VacancyParserTests(unittest.TestCase):
         )
         self.assertEqual(parsed.requirements, "Python SQL")
         self.assertEqual(parsed.responsibilities, "")
-        self.assertEqual(parsed.description, "Python SQL Удалённая работа")
+        self.assertEqual(parsed.description, "Python SQL")
 
     def test_heading_words_inside_sentences_do_not_switch_sections(self):
         parsed = self.parse(
@@ -95,7 +95,7 @@ class VacancyParserTests(unittest.TestCase):
                 )
                 self.assertEqual(parsed.requirements, "Python")
                 self.assertEqual(parsed.responsibilities, "Build API")
-                self.assertEqual(parsed.description, "Python Build API Remote work")
+                self.assertEqual(parsed.description, "Python Build API")
 
     def test_text_without_known_headings_does_not_invent_sections(self):
         parsed = self.parse("Python-разработчик\nРазработка API на Python и SQL")
@@ -115,7 +115,7 @@ class VacancyParserTests(unittest.TestCase):
         self.assertEqual(parsed.requirements, "Python, SQL")
         self.assertEqual(parsed.responsibilities, "Разработка сервисов на Java")
         self.assertIn("Разработка сервисов на Java", parsed.description)
-        self.assertIn("Обучение Docker и Kubernetes", parsed.description)
+        self.assertNotIn("Обучение Docker и Kubernetes", parsed.description)
 
     def test_no_requirements_does_not_infer_required_skills_from_other_sections(self):
         parsed = self.parse(
@@ -124,7 +124,7 @@ class VacancyParserTests(unittest.TestCase):
         )
         self.assertEqual(parsed.requirements, "")
         self.assertEqual(parsed.required_skills, [])
-        self.assertEqual(parsed.description, "Разработка на Python Обучение Docker")
+        self.assertEqual(parsed.description, "Разработка на Python")
 
     def test_negation_does_not_cross_requirement_lines(self):
         for requirements in ("Без опыта Docker\nPython", "Python\nБез опыта Docker"):
