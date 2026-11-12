@@ -2,8 +2,11 @@
 
 import math
 import unittest
+from unittest.mock import patch
 
+from scorer import tfidf_features
 from scorer.expression_catalog import DEFAULT_SKILLS
+from scorer.lemmatization import EXPRESSION_PROFILE, LEMMA_PROFILE
 from scorer.text_similarity import calculate_corpus_similarities, calculate_text_similarity, fit_corpus_tfidf
 from scorer.tfidf_features import ProfessionalAnalyzer
 
@@ -25,6 +28,16 @@ class TfidfFeatureTests(unittest.TestCase):
     def test_unknown_professional_words_are_preserved(self):
         self.assertIn("word:elixir", self.analyzer("Разработка Elixir приложений"))
 
+    def test_lemma_profile_applies_stop_words_to_lemmas(self):
+        # A fixed lemma table keeps this check independent of dictionary data.
+        lemmas = {"опыта": "опыт", "компаниях": "компания", "компании": "компания", "проектах": "проект"}
+        tfidf_features._lemma_stop_words.cache_clear()
+        self.addCleanup(tfidf_features._lemma_stop_words.cache_clear)
+        with patch.object(tfidf_features, "lemma", lambda word: lemmas.get(word, word)):
+            features = ProfessionalAnalyzer((), LEMMA_PROFILE)("опыта в компаниях, проектах")
+        self.assertEqual(features, ["word:проект"])
+        self.assertEqual(ProfessionalAnalyzer((), EXPRESSION_PROFILE)("опыта"), ["word:опыта"])
+
     def test_word_bigrams_do_not_cross_a_masked_expression(self):
         features = self.analyzer("надёжная Python платформа")
         self.assertIn("word:надежная", features)
@@ -35,6 +48,12 @@ class TfidfFeatureTests(unittest.TestCase):
         resumes = [{"anonymized_text": "Разрабатывал RESTful API"}]
         scores = calculate_corpus_similarities(resumes, {"description": "Разработка REST API"}, resumes, [])
         self.assertEqual(scores, [100.0])
+
+    def test_verb_aspect_does_not_change_the_activity_score(self):
+        texts = ("Разрабатывал REST API", "Разработал REST API", "Создал REST API")
+        resumes = [{"resume_id": str(index), "anonymized_text": text} for index, text in enumerate(texts)]
+        scores = calculate_corpus_similarities(resumes, {"description": "Разработка REST API"}, resumes, [])
+        self.assertEqual(scores, [100.0, 100.0, 100.0])
 
     def test_technical_aliases_compare_equally(self):
         self.assertEqual(calculate_text_similarity("dotnet, CI CD", ".NET, CI/CD"), 100.0)

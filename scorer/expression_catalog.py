@@ -1,6 +1,6 @@
 """Versioned aliases and activity verbs, with no external dependencies."""
 
-EXPRESSION_RULES_VERSION = "expressions-1.1"
+EXPRESSION_RULES_VERSION = "expressions-1.2"
 CATALOG_VERSION = "professional-catalog-1.1"
 
 # One source of defaults for TF-IDF and the integrated Parser.
@@ -60,10 +60,29 @@ DISPLAY_NAMES = {
 
 # Each verb must immediately precede a known target (optionally through one
 # listed preposition). Arbitrary intervening words are not consumed.
+# Forms are listed explicitly: both aspects (разрабатывал/разработал), past and
+# present, infinitive and the cases of the verbal noun (в разработке, настройкой).
 ACTIVITY_VERBS = {
-    "develop": r"разработ(?:ка|ки|ку|кой)|разрабатыва(?:л[аи]?|ю|ем)|создава(?:л[аи]?|ю)|develop(?:ed|ing|ment)?|build(?:ing)?|built",
-    "administer": r"администрировани[ея]|администрирова(?:л[аи]?|ть)|администрирую|administer(?:ed|ing)?|administration",
-    "deploy": r"разв[её]ртывани[ея]|разворачивал[аи]?|развернул[аи]?|deploy(?:ed|ing|ment)?",
-    "configure": r"настройк[аиу]|настраива(?:л[аи]?|ю)|configur(?:e|ed|ing|ation)",
-    "test": r"тестировани[ея]|тестирова(?:л[аи]?|ть)|тестирую|test(?:ed|ing)?",
+    "develop": (
+        r"разработ(?:к(?:а|и|е|у|ой|ою)|а(?:л[аи]?|ть|ю|ем|ет|ют))|разрабатыва(?:л[аи]?|ть|ю|ем|ет|ют)|"
+        r"созда(?:ва(?:л[аи]?|ть)|л[аи]?|ть|ю|[её]м|[её]т|ют|ни(?:е|я|ю|ем|и))|"
+        r"develop(?:s|ed|ing|ment)?|build(?:s|ing)?|built|creat(?:e|es|ed|ing)"
+    ),
+    "administer": (
+        r"администрировани(?:е|я|ю|ем|и)|администрирова(?:л[аи]?|ть)|администриру(?:ю|ем|ет|ют)|"
+        r"administer(?:s|ed|ing)?|administration"
+    ),
+    "deploy": (
+        r"разв[её]ртывани(?:е|я|ю|ем|и)|разв[её]ртыва(?:л[аи]?|ть|ю|ем|ет|ют)|"
+        r"разворачива(?:л[аи]?|ть|ю|ем|ет|ют)|разверн(?:ул[аи]?|уть|у|[её]м|[её]т|ут)|"
+        r"deploy(?:s|ed|ing|ment|ments)?"
+    ),
+    "configure": (
+        r"настройк(?:а|и|е|у|ой|ою)|настраива(?:л[аи]?|ть|ю|ем|ет|ют)|настро(?:ил[аи]?|ить|ю|им|ит|ят)|"
+        r"configur(?:e|es|ed|ing|ation)"
+    ),
+    "test": (
+        r"тестировани(?:е|я|ю|ем|и)|(?:про)?тестирова(?:л[аи]?|ть)|(?:про)?тестиру(?:ю|ем|ет|ют)|"
+        r"test(?:s|ed|ing)?"
+    ),
 }
