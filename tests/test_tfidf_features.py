@@ -2,8 +2,11 @@
 
 import math
 import unittest
+from unittest.mock import patch
 
+from scorer import tfidf_features
 from scorer.expression_catalog import DEFAULT_SKILLS
+from scorer.lemmatization import EXPRESSION_PROFILE, LEMMA_PROFILE
 from scorer.text_similarity import calculate_corpus_similarities, calculate_text_similarity, fit_corpus_tfidf
 from scorer.tfidf_features import ProfessionalAnalyzer
 
@@ -25,6 +28,16 @@ class TfidfFeatureTests(unittest.TestCase):
     def test_unknown_professional_words_are_preserved(self):
         self.assertIn("word:elixir", self.analyzer("Разработка Elixir приложений"))
 
+    def test_lemma_profile_applies_stop_words_to_lemmas(self):
+        # A fixed lemma table keeps this check independent of dictionary data.
+        lemmas = {"опыта": "опыт", "компаниях": "компания", "компании": "компания", "проектах": "проект"}
+        tfidf_features._lemma_stop_words.cache_clear()
+        self.addCleanup(tfidf_features._lemma_stop_words.cache_clear)
+        with patch.object(tfidf_features, "lemma", lambda word: lemmas.get(word, word)):
+            features = ProfessionalAnalyzer((), LEMMA_PROFILE)("опыта в компаниях, проектах")
+        self.assertEqual(features, ["word:проект"])
+        self.assertEqual(ProfessionalAnalyzer((), EXPRESSION_PROFILE)("опыта"), ["word:опыта"])
+
     def test_word_bigrams_do_not_cross_a_masked_expression(self):
         features = self.analyzer("надёжная Python платформа")
         self.assertIn("word:надежная", features)
@@ -35,6 +48,12 @@ class TfidfFeatureTests(unittest.TestCase):
         resumes = [{"anonymized_text": "Разрабатывал RESTful API"}]
         scores = calculate_corpus_similarities(resumes, {"description": "Разработка REST API"}, resumes, [])
         self.assertEqual(scores, [100.0])
+
+    def test_verb_aspect_does_not_change_the_activity_score(self):
+        texts = ("Разрабатывал REST API", "Разработал REST API", "Создал REST API")
+        resumes = [{"resume_id": str(index), "anonymized_text": text} for index, text in enumerate(texts)]
+        scores = calculate_corpus_similarities(resumes, {"description": "Разработка REST API"}, resumes, [])
+        self.assertEqual(scores, [100.0, 100.0, 100.0])
 
     def test_technical_aliases_compare_equally(self):
         self.assertEqual(calculate_text_similarity("dotnet, CI CD", ".NET, CI/CD"), 100.0)
@@ -90,6 +109,37 @@ class TfidfFeatureTests(unittest.TestCase):
         vocabulary = fitted.vectorizer.vocabulary_
         ratio = row[0, vocabulary["skill:python"]] / row[0, vocabulary["skill:docker"]]
         self.assertAlmostEqual(ratio, 1 + math.log(3))
+
+    def weight_ratio(self, fitted, row, numerator, denominator):
+        vector, vocabulary = fitted.matrix[row], fitted.vectorizer.vocabulary_
+        return vector[0, vocabulary[numerator]] / vector[0, vocabulary[denominator]]
+
+    def test_description_does_not_repeat_requirements_and_responsibilities(self):
+        # Shaped like a parsed vacancy: the description is built from the other sections.
+        vacancy = {"id": "v", "requirements": "Python", "responsibilities": "Docker",
+                   "description": "Python Docker Kafka"}
+        resume = {"resume_id": "r", "anonymized_text": "Python Docker Kafka"}
+        fitted = fit_corpus_tfidf([resume], vacancy, [resume], [vacancy])
+        row = fitted.vacancy_index
+        self.assertAlmostEqual(self.weight_ratio(fitted, row, "skill:python", "skill:kafka"), 1 + math.log(2))
+        self.assertAlmostEqual(self.weight_ratio(fitted, row, "skill:docker", "skill:kafka"), 1.0)
+
+    def test_independent_description_is_kept_whole(self):
+        vacancy = {"id": "v", "requirements": "Python", "description": "Docker Kafka"}
+        resume = {"resume_id": "r", "anonymized_text": "Python Docker Kafka"}
+        fitted = fit_corpus_tfidf([resume], vacancy, [resume], [vacancy])
+        self.assertAlmostEqual(self.weight_ratio(fitted, fitted.vacancy_index, "skill:docker", "skill:kafka"), 1.0)
+        self.assertAlmostEqual(
+            self.weight_ratio(fitted, fitted.vacancy_index, "skill:python", "skill:kafka"), 1 + math.log(2)
+        )
+
+    def test_experience_inside_anonymized_text_is_counted_once(self):
+        parsed = {"resume_id": "p", "experience": "Python", "anonymized_text": "Python\n\nDocker"}
+        legacy = {"resume_id": "l", "experience": "Python", "anonymized_text": "Docker"}
+        fitted = fit_corpus_tfidf([parsed, legacy], {"id": "v", "description": "Python Docker"}, [parsed, legacy], [])
+        parsed_row, legacy_row = fitted.candidate_indices
+        self.assertAlmostEqual(self.weight_ratio(fitted, parsed_row, "skill:python", "skill:docker"), 1.0)
+        self.assertAlmostEqual(self.weight_ratio(fitted, legacy_row, "skill:python", "skill:docker"), 1 + math.log(2))
 
     def test_repeated_current_inputs_do_not_inflate_the_fit_corpus(self):
         vacancy = {"id": "v", "description": "Python"}

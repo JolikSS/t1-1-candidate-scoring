@@ -145,6 +145,24 @@ class ProfessionalExpressionTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertIn(feature, professional_features(text, CATALOG))
 
+    def test_perfective_and_inflected_verbs_share_the_activity_feature(self):
+        for text, feature in (
+            ("Разработал REST API", "activity:develop:rest api"),
+            ("Разработала REST API", "activity:develop:rest api"),
+            ("Участвовал в разработке REST API", "activity:develop:rest api"),
+            ("Создал REST API", "activity:develop:rest api"),
+            ("Создание REST API", "activity:develop:rest api"),
+            ("Created REST API", "activity:develop:rest api"),
+            ("Настроил CI/CD", "activity:configure:ci/cd"),
+            ("Настройкой CI/CD", "activity:configure:ci/cd"),
+            ("Протестировал REST API", "activity:test:rest api"),
+            ("Развертыванием Kubernetes", "activity:deploy:kubernetes"),
+            ("Развернуть Kubernetes", "activity:deploy:kubernetes"),
+            ("Администрирует Linux", "activity:administer:linux"),
+        ):
+            with self.subTest(text=text):
+                self.assertIn(feature, professional_features(text, CATALOG))
+
     def test_negative_activity_is_not_positive_experience(self):
         text = "Не разрабатывал REST API"
         self.assertEqual(professional_features(text, CATALOG), [])
