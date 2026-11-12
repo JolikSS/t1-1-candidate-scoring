@@ -25,8 +25,8 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 
 from db.graph_store import GraphStore
+from scorer.cosine_ranking import cosine_results
 from scorer.text_similarity import calculate_corpus_similarities
-from scorer.weighted_ranking import weighted_results
 from tests.acceptance_cases import CASES
 from tests.pdf_fixture import text_pdf
 from tools.monitor_availability import monitor
@@ -165,7 +165,7 @@ def verify(mongo_uri, batch_size=100, *, neo4j_uri=None, long_pages=10):
             assert elapsed < 1800, "Batch exceeds the 30-minute requirement"
             assert run["results"] == sorted(run["results"], key=lambda r: (-r["score"], r["resume_id"]))
             if graph is not None:
-                assert graph.list_results(run["run_id"]) == run["results"], "Neo4j weighted mirror differs from MongoDB"
+                assert graph.list_results(run["run_id"]) == run["results"], "Neo4j cosine mirror differs from MongoDB"
                 with graph.driver.session() as session:
                     required = session.run(
                         "MATCH (:ScoringRun {id:$run_id})-[r:REQUIRES]->(s:Skill) "
@@ -191,13 +191,10 @@ def verify(mongo_uri, batch_size=100, *, neo4j_uri=None, long_pages=10):
             similarities = calculate_corpus_similarities(
                 resumes, evaluated_vacancy, resumes, vacancies, profile=run["parameters"]["feature_profile"]
             )
-            replay = weighted_results(
+            replay = cosine_results(
                 resumes,
                 similarities,
                 evaluated_vacancy,
-                coverage_weight=run["parameters"]["coverage_weight"],
-                critical_multiplier=run["parameters"]["critical_multiplier"],
-                ranking_version=run["ranking_version"],
             )
             assert replay == run["results"], "Stored inputs do not reproduce the ranking"
 
@@ -266,7 +263,7 @@ def verify(mongo_uri, batch_size=100, *, neo4j_uri=None, long_pages=10):
                 role_run = call(
                     "POST", "/scoring-runs", 201, json={"vacancy_id": role["id"], "resume_ids": [role_resume]}
                 ).json()
-                assert role_run["results"][0]["skill_coverage"] == 100, f"Domain workflow failed: {domain}"
+                assert role_run["results"][0]["status"] == "scored", f"Domain workflow failed: {domain}"
 
             # A multi-page text PDF exercises extraction/latency without claiming real-data throughput.
             long_pdf = text_pdf(["Experience", "Developed Python services using Docker."] * 12, pages=long_pages)

@@ -118,9 +118,10 @@ class GraphStore:
             ).single()
             if record is None:
                 return []
+            from scorer.cosine_ranking import COSINE_RANKING_VERSION
             from scorer.weighted_ranking import WEIGHTED_RANKING_VERSIONS
 
-            if record["version"] in WEIGHTED_RANKING_VERSIONS:
+            if record["version"] in (*WEIGHTED_RANKING_VERSIONS, COSINE_RANKING_VERSION):
                 return json.loads(record["results_json"])
             if record["version"] != RANKING_VERSION:
                 raise ValueError("Historical graph run uses another ranking version; request a new calculation.")

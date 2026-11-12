@@ -6,7 +6,7 @@ import mongomock
 import api.main as api
 from db.graph_store import GraphStore
 from db.mongo_store import MongoStore
-from scorer.ranking import RANKING_VERSION, RESULT_FIELDS
+from scorer.cosine_ranking import COSINE_RANKING_VERSION as RANKING_VERSION, COSINE_RESULT_FIELDS as RESULT_FIELDS
 import test_archive_ui as existing
 
 

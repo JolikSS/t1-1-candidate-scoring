@@ -10,6 +10,8 @@ TARGETS = (
     "db/mongo_store.py",
     "db/graph_store.py",
     "scorer/ranking.py",
+    "scorer/cosine_ranking.py",
+    "tests/test_cosine_ranking.py",
     "scorer/weighted_ranking.py",
     "scorer/lemmatization.py",
     "scorer/text_similarity.py",

@@ -4,7 +4,7 @@ import math
 import unittest
 
 from scorer.expression_catalog import DEFAULT_SKILLS
-from scorer.text_similarity import calculate_corpus_similarities, calculate_text_similarity, fit_corpus_tfidf
+from scorer.text_similarity import EmptyVacancyError, calculate_corpus_similarities, calculate_text_similarity, fit_corpus_tfidf
 from scorer.tfidf_features import ProfessionalAnalyzer
 
 
@@ -120,10 +120,12 @@ class TfidfFeatureTests(unittest.TestCase):
             ], {"description": "Python"}, [], [])
 
     def test_empty_and_zero_vectors_have_defined_results(self):
-        self.assertEqual(calculate_corpus_similarities([], {}, [], []), [])
-        self.assertEqual(calculate_corpus_similarities([{}], {}, [], []), [None])
-        self.assertEqual(calculate_corpus_similarities([{}], {"description": "Python"}, [], []), [0.0])
-        self.assertEqual(calculate_text_similarity("и в на", "и в на"), 0.0)
+        for resumes in ([], [{}]):
+            with self.assertRaises(EmptyVacancyError):
+                calculate_corpus_similarities(resumes, {}, [], [])
+        self.assertEqual(calculate_corpus_similarities([{}], {"description": "Python"}, [], []), [None])
+        with self.assertRaises(EmptyVacancyError):
+            calculate_text_similarity("и в на", "и в на")
 
 
 if __name__ == "__main__":

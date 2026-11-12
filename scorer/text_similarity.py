@@ -14,6 +14,10 @@ from scorer.professional_expressions import canonical_skill_key
 from scorer.tfidf_features import ProfessionalAnalyzer
 
 
+class EmptyVacancyError(ValueError):
+    """The vacancy has no usable TF-IDF features."""
+
+
 def _repeat(value: str, count: int) -> str:
     return "\n".join([value] * count)
 
@@ -95,6 +99,8 @@ def fit_corpus_tfidf(
                 if isinstance(skill, str) and skill.strip():
                     catalog.setdefault(canonical_skill_key(skill), skill.strip())
     shared_catalog = tuple(catalog.values())
+    if not ProfessionalAnalyzer(shared_catalog, profile)(vacancy_document):
+        raise EmptyVacancyError("Вакансия не содержит признаков для оценки.")
     vectorizer = TfidfVectorizer(
         analyzer=ProfessionalAnalyzer(shared_catalog, profile),
         token_pattern=None,
@@ -105,13 +111,7 @@ def fit_corpus_tfidf(
         max_df=1.0,
         min_df=1,
     )
-    try:
-        matrix = vectorizer.fit_transform(corpus)
-    except ValueError as exc:
-        if "empty vocabulary" in str(exc).casefold():
-            matrix = None
-        else:
-            raise
+    matrix = vectorizer.fit_transform(corpus)
     vacancy_index = row_by_key[compared_keys[0]]
     candidate_indices = [row_by_key[key] for key in compared_keys[1:]]
     return CorpusTfidf(vectorizer, matrix, vacancy_index, candidate_indices, corpus, shared_catalog)
@@ -126,20 +126,19 @@ def calculate_corpus_similarities(
     profile: str = EXPRESSION_PROFILE,
 ) -> list[float | None]:
     """Fit once on the shared corpus, return cosine similarity on a 0..100 scale."""
+    fitted = fit_corpus_tfidf(resumes, vacancy, corpus_resumes, corpus_vacancies, profile=profile)
     if not resumes:
         return []
-    if not _weighted_vacancy(vacancy).strip():
-        return [None] * len(resumes)
-    fitted = fit_corpus_tfidf(resumes, vacancy, corpus_resumes, corpus_vacancies, profile=profile)
-    if fitted.matrix is None:
-        return [0.0] * len(resumes)
     candidates = fitted.matrix[fitted.candidate_indices]
     values = cosine_similarity(candidates, fitted.matrix[fitted.vacancy_index]).ravel()
-    return [round(float(value) * 100, 1) for value in values]
+    # Keep full precision for ranking and persistence. A zero vector is not a
+    # measured zero similarity; it has no evidence on which to base an estimate.
+    return [
+        min(100.0, max(0.0, float(value) * 100)) if candidates[index].nnz else None
+        for index, value in enumerate(values)
+    ]
 
 
 def calculate_text_similarity(resume_text: str, vacancy_text: str) -> float | None:
     """Compatibility helper; callers should prefer corpus-fitted scoring."""
-    if not resume_text.strip() or not vacancy_text.strip():
-        return None
     return calculate_corpus_similarities([{"anonymized_text": resume_text}], {"description": vacancy_text}, [], [])[0]

@@ -65,7 +65,11 @@ def rank_result_rows(rows):
 
 def public_result(row, *, default_version="legacy"):
     """Project historical records without changing their stored order or data."""
+    from scorer.cosine_ranking import COSINE_RANKING_VERSION, COSINE_RESULT_FIELDS
     from scorer.weighted_ranking import WEIGHTED_RANKING_VERSIONS, WEIGHTED_RESULT_FIELDS
+
+    if row.get("ranking_version", default_version) == COSINE_RANKING_VERSION:
+        return {key: value for key, value in row.items() if key in COSINE_RESULT_FIELDS}
 
     fields = (
         WEIGHTED_RESULT_FIELDS

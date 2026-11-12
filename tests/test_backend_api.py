@@ -14,7 +14,8 @@ import api.main as api
 from api.config import Settings
 from api.services.scoring import scoring_slots
 from db.mongo_store import MongoStore
-from scorer.weighted_ranking import LEMMATIZED_RANKING_VERSION, weighted_results
+from scorer.cosine_ranking import COSINE_RANKING_VERSION
+from scorer.weighted_ranking import weighted_results
 from tests.pdf_fixture import text_pdf
 
 
@@ -59,9 +60,9 @@ class BackendApiTests(unittest.TestCase):
         uploaded = self.upload()
         identifier = uploaded["resumes"][0]["resume_id"]
         run = self.run_score(vacancy)
-        self.assertEqual(run["ranking_version"], LEMMATIZED_RANKING_VERSION)
+        self.assertEqual(run["ranking_version"], COSINE_RANKING_VERSION)
         self.assertEqual(run["status"], "completed")
-        self.assertEqual(run["results"][0]["skill_coverage"], 100)
+        self.assertEqual(run["results"][0]["score"], run["results"][0]["text_similarity"])
         self.assertEqual(self.client.get("/scoring-runs/" + run["run_id"]).json()["results"], run["results"])
         self.assertEqual(self.client.get(f"/vacancies/{vacancy['id']}/results").json(), run["results"])
         self.assertEqual(self.client.get("/scoring-runs").json()[0]["run_id"], run["run_id"])
@@ -83,7 +84,7 @@ class BackendApiTests(unittest.TestCase):
         uploaded = self.client.post("/resumes/upload", files={"files": ("r.pdf", resume_pdf, "application/pdf")})
         self.assertEqual(uploaded.status_code, 200, uploaded.text)
         self.assertEqual(uploaded.json()["count"], 1)
-        self.assertEqual(self.run_score(vacancy)["results"][0]["skill_coverage"], 100)
+        self.assertEqual(self.run_score(vacancy)["results"][0]["status"], "scored")
 
     def test_encrypted_and_scanned_pdf_are_reported(self):
         from pypdf import PdfWriter
@@ -286,9 +287,12 @@ class BackendApiTests(unittest.TestCase):
         vacancy = self.vacancy(required_skills=["Python 3", "Python", "Postgres"], critical_skills=["PostgreSQL"])
         self.assertEqual(vacancy["required_skills"], ["Python 3", "Postgres"])
         self.upload("Experience\nPython")
-        result = self.run_score(vacancy, coverage_weight=1)["results"][0]
-        self.assertAlmostEqual(result["skill_coverage"], 100 / 3, places=3)
-        self.assertEqual(result["missing_critical_skills"], ["Postgres"])
+        result = self.run_score(vacancy)["results"][0]
+        self.assertEqual(result["matched_skills"], ["Python 3"])
+        self.assertEqual(result["missing_skills"], ["Postgres"])
+        before = result["score"]
+        self.client.patch("/vacancies/" + vacancy["id"], json={"critical_skills": ["Python"]})
+        self.assertEqual(self.run_score(vacancy)["results"][0]["score"], before)
 
     def test_missing_resources_and_source_of_legacy_document(self):
         for url in ("/vacancies/missing", "/resumes/missing", "/scoring-runs/missing"):
@@ -347,11 +351,12 @@ class BackendApiTests(unittest.TestCase):
             response = self.client.post("/scoring-runs", json={"vacancy_id": "v", **params})
             self.assertEqual(response.status_code, 422)
 
-    def test_legacy_score_works_without_neo4j_and_keeps_coverage_semantics(self):
+    def test_legacy_score_works_without_neo4j_and_uses_cosine(self):
         self.upload()
         response = self.client.post("/score", data={"vacancy_title": "Python", "required_skills": '["Python", "Rust"]'})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["results"][0]["score"], 50)
+        row = response.json()["results"][0]
+        self.assertEqual(row["score"], row["text_similarity"])
 
     def test_openapi_contains_new_contracts(self):
         schema = self.client.get("/openapi.json").json()

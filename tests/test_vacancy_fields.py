@@ -72,7 +72,8 @@ class VacancyFieldsTests(unittest.TestCase):
         self.db.save_resume({"resume_id": "r", "content_hash": "r", "anonymized_text": "Used Elixir"})
         result = self.score(vacancy)["results"][0]
         self.assertIn("Elixir", self.db.list_resumes()[0]["skills"])
-        self.assertEqual(result["score"], 0)
+        self.assertGreater(result["score"], 0)
+        self.assertEqual(result["score"], result["text_similarity"])
         self.assertEqual(result["missing_skills"], ["Rust"])
 
     def test_scoring_does_not_silently_reparse_legacy_vacancies(self):

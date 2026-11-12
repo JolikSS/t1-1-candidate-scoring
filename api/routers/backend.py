@@ -87,7 +87,9 @@ def resume_text(resume_id: str, source: Annotated[bool, Query()] = False, db=Dep
     return PlainTextResponse(text, headers={"Cache-Control": "no-store"})
 
 
-@router.post("/scoring-runs", response_model=ScoringRun, status_code=201, tags=["Scoring"])
+@router.post(
+    "/scoring-runs", response_model=ScoringRun, response_model_exclude_unset=True, status_code=201, tags=["Scoring"]
+)
 def create_run(request: ScoringRequest, db=Depends(database), graph=Depends(optional_graph)):
     return calculate_run(db, request, graph)
 
@@ -99,7 +101,9 @@ def list_runs(vacancy_id: str | None = None, offset: PageOffset = 0, limit: Page
     return db.list_runs(vacancy_id, offset, limit)
 
 
-@router.get("/scoring-runs/{run_id}", response_model=ScoringRun | LegacyRun, tags=["Scoring"])
+@router.get(
+    "/scoring-runs/{run_id}", response_model=ScoringRun | LegacyRun, response_model_exclude_unset=True, tags=["Scoring"]
+)
 def get_run(run_id: str, db=Depends(database)):
     run = db.get_run(run_id)
     if run is None:

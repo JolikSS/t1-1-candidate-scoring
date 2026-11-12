@@ -22,8 +22,6 @@ def main():
     parser.add_argument("--split", choices=("train", "validation", "test"), default="test")
     parser.add_argument("--corpus-policy", choices=("split", "shared"), default="split")
     parser.add_argument("--profile", choices=FEATURE_PROFILES, default=LEMMA_PROFILE)
-    parser.add_argument("--coverage-weight", type=float, default=0.7)
-    parser.add_argument("--critical-multiplier", type=float, default=2.0)
     parser.add_argument("--threshold", type=float, default=50.0)
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument("--output", type=Path)
@@ -48,8 +46,6 @@ def main():
                 else evaluate(
                     dataset,
                     split=args.split,
-                    coverage_weight=args.coverage_weight,
-                    critical_multiplier=args.critical_multiplier,
                     threshold=args.threshold,
                     k=args.k,
                     profile=args.profile,

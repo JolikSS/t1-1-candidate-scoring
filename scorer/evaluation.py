@@ -9,10 +9,10 @@ from pydantic import Field, field_validator, model_validator
 from sklearn.metrics import roc_auc_score
 
 from api.schemas import Identifier, ResumeDocument, StrictModel, Title, VacancyCreate
-from scorer.lemmatization import EXPRESSION_PROFILE, FEATURE_PROFILES, LEMMA_PROFILE
+from scorer.cosine_ranking import COSINE_RANKING_VERSION, cosine_results
+from scorer.lemmatization import FEATURE_PROFILES, LEMMA_PROFILE
 from scorer.skill_matching import find_skill_mentions
 from scorer.text_similarity import calculate_corpus_similarities
-from scorer.weighted_ranking import LEMMATIZED_RANKING_VERSION, WEIGHTED_RANKING_VERSION, weighted_results
 
 
 class BenchmarkVacancy(VacancyCreate):
@@ -151,18 +151,10 @@ def prepared_queries(dataset, split, *, profile=LEMMA_PROFILE, corpus_policy="sp
     return queries
 
 
-def scored_pairs(queries, coverage_weight, critical_multiplier, profile):
-    version = WEIGHTED_RANKING_VERSION if profile == EXPRESSION_PROFILE else LEMMATIZED_RANKING_VERSION
+def scored_pairs(queries):
     pairs = []
     for query in queries:
-        rows = weighted_results(
-            query["resumes"],
-            query["similarities"],
-            query["vacancy"],
-            coverage_weight=coverage_weight,
-            critical_multiplier=critical_multiplier,
-            ranking_version=version,
-        )
+        rows = cosine_results(query["resumes"], query["similarities"], query["vacancy"])
         pairs.extend(
             {
                 "vacancy_id": query["vacancy"]["id"],
@@ -179,16 +171,20 @@ def scored_pairs(queries, coverage_weight, critical_multiplier, profile):
 def metrics(pairs, *, threshold=50.0, k=10):
     if not pairs or k < 1 or not 0 <= threshold <= 100:
         raise ValueError("Metrics need pairs, k >= 1 and a threshold in 0..100")
+    total_pairs = len(pairs)
+    unscored = sum(p["score"] is None for p in pairs)
+    ranking_pairs = pairs
+    pairs = [p for p in pairs if p["score"] is not None]
     tp = sum(p["label"] == 1 and p["score"] >= threshold for p in pairs)
     fp = sum(p["label"] == 0 and p["score"] >= threshold for p in pairs)
     fn = sum(p["label"] == 1 and p["score"] < threshold for p in pairs)
     precision, recall = tp / (tp + fp) if tp + fp else 0.0, tp / (tp + fn) if tp + fn else 0.0
     groups = defaultdict(list)
-    for pair in pairs:
+    for pair in ranking_pairs:
         groups[pair["vacancy_id"]].append(pair)
     averages, ndcgs, precisions = [], [], []
     for group in groups.values():
-        ordered = sorted(group, key=lambda p: (-p["score"], p["resume_id"]))
+        ordered = sorted(group, key=lambda p: (p["score"] is None, -(p["score"] or 0), p["resume_id"]))
         positives = sum(p["label"] for p in ordered)
         precisions.append(sum(p["label"] for p in ordered[:k]) / min(k, len(ordered)))
         if positives:
@@ -202,7 +198,9 @@ def metrics(pairs, *, threshold=50.0, k=10):
             ndcgs.append(sum(p["label"] / log2(i + 2) for i, p in enumerate(ordered[:k])) / ideal)
     labels = [p["label"] for p in pairs]
     return {
-        "pairs": len(pairs),
+        "pairs": total_pairs,
+        "scored_pairs": len(pairs),
+        "insufficient_text_pairs": unscored,
         "queries": len(groups),
         "threshold": threshold,
         "k": k,
@@ -226,8 +224,6 @@ def evaluate(
     dataset,
     *,
     split="test",
-    coverage_weight=0.7,
-    critical_multiplier=2.0,
     threshold=50.0,
     k=10,
     profile=LEMMA_PROFILE,
@@ -239,7 +235,7 @@ def evaluate(
         if queries is not None
         else prepared_queries(dataset, split, profile=profile, corpus_policy=corpus_policy)
     )
-    pairs = scored_pairs(queries, coverage_weight, critical_multiplier, profile)
+    pairs = scored_pairs(queries)
     by_domain = defaultdict(list)
     for pair in pairs:
         by_domain[pair["domain"]].append(pair)
@@ -247,7 +243,8 @@ def evaluate(
         "split": split,
         "corpus_policy": corpus_policy,
         "feature_profile": profile,
-        "parameters": {"coverage_weight": coverage_weight, "critical_multiplier": critical_multiplier},
+        "parameters": {},
+        "ranking_version": COSINE_RANKING_VERSION,
         "metrics": metrics(pairs, threshold=threshold, k=k),
         "by_domain": {name: metrics(rows, threshold=threshold, k=k) for name, rows in sorted(by_domain.items())},
     }
@@ -256,8 +253,6 @@ def evaluate(
 def calibrate(
     dataset,
     *,
-    weights=(0.25, 0.5, 0.7, 0.9),
-    multipliers=(1.5, 2.0, 3.0),
     thresholds=(25.0, 50.0, 75.0),
     k=10,
     profile=LEMMA_PROFILE,
@@ -267,22 +262,18 @@ def calibrate(
     if {j.label for j in dataset.judgments if j.split == "validation"} != {0, 1}:
         raise ValueError("Calibration requires both classes in the validation split")
     queries = prepared_queries(dataset, "validation", profile=profile, corpus_policy=corpus_policy)
-    trials = []
-    for weight in weights:
-        for multiplier in multipliers:
-            for threshold in thresholds:
-                result = evaluate(
-                    dataset,
-                    split="validation",
-                    coverage_weight=weight,
-                    critical_multiplier=multiplier,
-                    threshold=threshold,
-                    k=k,
-                    profile=profile,
-                    corpus_policy=corpus_policy,
-                    queries=queries,
-                )
-                trials.append(result)
+    trials = [
+        evaluate(
+            dataset,
+            split="validation",
+            threshold=threshold,
+            k=k,
+            profile=profile,
+            corpus_policy=corpus_policy,
+            queries=queries,
+        )
+        for threshold in thresholds
+    ]
     if not trials:
         raise ValueError("Calibration grid is empty")
     best = min(
@@ -290,8 +281,6 @@ def calibrate(
         key=lambda r: (
             -r["metrics"]["f1"],
             -(r["metrics"]["ndcg_at_k"] or 0),
-            r["parameters"]["coverage_weight"],
-            r["parameters"]["critical_multiplier"],
             r["metrics"]["threshold"],
         ),
     )

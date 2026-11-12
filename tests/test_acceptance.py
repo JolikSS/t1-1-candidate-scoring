@@ -1,5 +1,6 @@
 """Acceptance tooling and preprocessing invariants, without private datasets."""
 
+import itertools
 import json
 import subprocess
 import sys
@@ -155,20 +156,16 @@ class EvaluationTests(unittest.TestCase):
         for judgment in changed["judgments"]:
             if judgment["split"] == "test":
                 judgment["label"] = 1 - judgment["label"]
-        first = calibrate(
-            original, weights=(0.25, 0.7), multipliers=(2,), thresholds=(25, 50), profile=EXPRESSION_PROFILE
-        )
+        first = calibrate(original, thresholds=(25, 50), profile=EXPRESSION_PROFILE)
         second = calibrate(
             BenchmarkDataset.model_validate(changed),
-            weights=(0.25, 0.7),
-            multipliers=(2,),
             thresholds=(25, 50),
             profile=EXPRESSION_PROFILE,
         )
         self.assertEqual(first["selected"], second["selected"])
         self.assertEqual(first["threshold"], second["threshold"])
         self.assertEqual(first["selection_split"], "validation")
-        self.assertEqual(first["trials"], 4)
+        self.assertEqual(first["trials"], 2)
         self.assertNotEqual(first["test"]["metrics"]["f1"], second["test"]["metrics"]["f1"])
 
     def test_evaluation_reports_domains_and_missing_split_errors(self):
@@ -244,7 +241,13 @@ class AvailabilityTests(unittest.TestCase):
     def test_monitor_persists_samples_and_rejects_overwriting_a_window(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "samples.jsonl"
-            with patch("tools.monitor_availability.probe", return_value={"ok": True, "latency_seconds": 0}):
+            # Deterministic clock: Windows timer granularity can otherwise
+            # produce equal timestamps in this 20 ms technical fixture.
+            with (
+                patch("tools.monitor_availability.probe", side_effect=lambda *a: {"ok": True, "latency_seconds": 0}),
+                patch("tools.monitor_availability.time.monotonic", side_effect=itertools.count(0, 0.001)),
+                patch("tools.monitor_availability.time.sleep"),
+            ):
                 report = monitor("http://localhost/health", duration=0.02, interval=0.01, timeout=1, samples_path=path)
             self.assertGreaterEqual(len(path.read_text().splitlines()), 1)
             self.assertGreaterEqual(len(load_samples(path)), 1)

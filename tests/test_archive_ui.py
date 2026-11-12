@@ -26,6 +26,9 @@ def archive(documents):
 
 
 class GraphDouble:
+    def record_run(self, run, vacancy, resumes):
+        pass
+
     def rank(self, run_id, vacancy, resumes, metrics):
         rows = [{**metric, **analyze_skills(resume["skills"], vacancy["required_skills"])}
                 for resume, metric in zip(resumes, metrics)]
@@ -66,7 +69,7 @@ class ArchiveFlowTests(unittest.TestCase):
         with patch.object(api, "parse_resume_bytes", side_effect=AssertionError("Must not parse duplicate")):
             result = self.score([archive({"resume.txt": content})], uploaded_only=True)
         self.assertEqual(result["results"][0]["resume_id"], "stable")
-        self.assertEqual(result["results"][0]["score"], 50)
+        self.assertEqual(result["results"][0]["score"], result["results"][0]["text_similarity"])
         self.assertEqual(self.lexical.call_args.args[0][0]["skills"], ["Python"])
         self.assertEqual(len(self.db.list_resumes()), 1)
 
@@ -75,7 +78,7 @@ class ArchiveFlowTests(unittest.TestCase):
         second = self.score()
         self.assertEqual(first["results"][0]["resume_id"], second["results"][0]["resume_id"])
         self.assertEqual(len(self.db.list_resumes()), 1)
-        self.assertEqual(first["results"][0]["score"], 100)
+        self.assertEqual(first["results"][0]["score"], first["results"][0]["text_similarity"])
 
     def test_empty_professional_resume_is_not_saved(self):
         with self.assertRaises(HTTPException) as error:
@@ -90,7 +93,7 @@ class ArchiveFlowTests(unittest.TestCase):
         self.assertEqual(error.exception.status_code, 422)
 
     def test_failed_graph_does_not_save_successful_history(self):
-        with patch.object(api.graph, "rank", side_effect=RuntimeError("offline")):
+        with patch.object(api.graph, "record_run", side_effect=RuntimeError("offline")):
             with self.assertRaises(HTTPException) as error:
                 self.score([archive({"resume.txt": b"Skills\nPython"})])
         self.assertEqual(error.exception.status_code, 503)
@@ -103,7 +106,7 @@ class ArchiveFlowTests(unittest.TestCase):
         with patch.object(api, "parse_resume_bytes", side_effect=AssertionError("No original needed")):
             result = api.score_resumes(vacancy_title="Rust", vacancy_description="Rust",
                 required_skills='["Rust"]', vacancy_id="rust", files=[], uploaded_only=False)
-        self.assertEqual(result["results"][0]["score"], 100)
+        self.assertEqual(result["results"][0]["score"], result["results"][0]["text_similarity"])
         self.assertIn("Rust", self.db.get_resume_by_hash("hash")["skills"])
 
     def test_initial_ui(self):
@@ -129,7 +132,7 @@ class ArchiveFlowTests(unittest.TestCase):
             self.assertFalse(app.exception)
             self.assertEqual(len(app.dataframe[0].value), 1)
             self.assertEqual(len(app.dataframe[0].value.columns), 6)
-            self.assertIn("TF-IDF, сходство (0–100)", app.dataframe[0].value.columns)
+            self.assertIn("Score (0–100)", app.dataframe[0].value.columns)
             self.assertIsNone(post.call_args.kwargs["files"])
             self.assertEqual(post.call_args.kwargs["data"]["uploaded_only"], "false")
 

@@ -20,7 +20,8 @@ from db.data_paths import data_root
 from db.graph_store import GraphStore
 from db.mongo_store import MongoStore
 from scorer.benchmark import analyze_skills
-from scorer.ranking import RANKING_VERSION, RESULT_FIELDS, rank_result_rows
+from scorer.cosine_ranking import COSINE_RANKING_VERSION as RANKING_VERSION
+from scorer.cosine_ranking import COSINE_RESULT_FIELDS as RESULT_FIELDS
 
 
 def main():
@@ -58,14 +59,14 @@ def main():
             rows = payload["results"]
             assert payload["ranking_version"] == RANKING_VERSION
             assert rows and all(set(row) == set(RESULT_FIELDS) for row in rows)
-            assert rows == rank_result_rows(rows)
+            assert rows == sorted(rows, key=lambda r: (r["score"] is None, -(r["score"] or 0), r["resume_id"]))
             if graph is not None:
                 graph_rows = graph.list_results(payload["run_id"])
                 assert graph_rows == rows
             stored = {r["resume_id"]: r for r in db.list_resumes()}
             for row in rows:
                 coverage = analyze_skills(stored[row["resume_id"]]["skills"], vacancy["required_skills"])
-                assert abs(coverage["score"] - row["score"]) < 1e-6
+                assert row["score"] == row["text_similarity"]
                 assert set(coverage["matched_skills"]) == set(row["matched_skills"])
             assert len(stored) == len({r["content_hash"] for r in stored.values()})
             assert db.list_results(vacancy["id"]) == rows

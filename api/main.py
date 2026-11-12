@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
@@ -17,15 +18,16 @@ from api.middleware import BodyLimitMiddleware
 from api.routers.backend import router as backend_router
 from api.schemas import VacancyCreate
 from api.services.documents import import_resumes, import_vacancies, unpack
-from api.services.scoring import scoring_slot
+from api.services.scoring import save_run, scoring_slot
 from db.data_paths import data_root
 from db.graph_store import GraphStore
 from db.mongo_store import MongoStore
 from Parser.resume_parser import parse_resume_bytes
 from Parser.vacancy_parser import SKILL_CATALOG, parse_vacancy_bytes
-from scorer.ranking import RANKING_VERSION, build_candidate_metrics
+from scorer.cosine_ranking import COSINE_RANKING_VERSION, cosine_results
+from scorer.lemmatization import LEMMA_PROFILE
 from scorer.skill_matching import canonical_skill_key
-from scorer.text_similarity import calculate_corpus_similarities
+from scorer.text_similarity import EmptyVacancyError, calculate_corpus_similarities
 
 LOGGER = logging.getLogger(__name__)
 store: MongoStore | None = None
@@ -236,6 +238,7 @@ def score_resumes(
 
 
 def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_id, files, uploaded_only):
+    started = time.monotonic()
     if not vacancy_title.strip():
         raise HTTPException(422, "Название вакансии пустое.")
     try:
@@ -260,6 +263,11 @@ def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_
             db.upsert_vacancy(resolved_id, vacancy["title"], required, vacancy["description"])
         vacancy = db.get_vacancy(resolved_id)
         required = vacancy["required_skills"]
+        # Use the same vacancy records for fit and saved inputs, even if another
+        # request edits the database while this calculation is running.
+        corpus_vacancies = sorted(
+            [v for v in db.list_vacancies() if v["id"] != resolved_id] + [vacancy], key=lambda v: v["id"]
+        )
         _maybe_export(db)
         uploaded, errors = _unpack(files)
         catalog = list(
@@ -269,7 +277,7 @@ def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_
                     *required,
                     *(
                         skill
-                        for v in db.list_vacancies()
+                        for v in corpus_vacancies
                         for field in ("required_skills", "preferred_skills")
                         for skill in v.get(field, []) or []
                     ),
@@ -282,7 +290,7 @@ def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_
 
         # Compare persisted MongoDB fields, never transient parser output.
         db.refresh_skills(catalog)
-        corpus_resumes = [r for r in db.list_resumes() if not r.get("hidden") and r.get("anonymized_text", "").strip()]
+        corpus_resumes = sorted([r for r in db.list_resumes() if not r.get("hidden")], key=lambda r: r["resume_id"])
         candidates = corpus_resumes
         if uploaded_only:
             hashes = {r["content_hash"] for r in batch}
@@ -291,27 +299,42 @@ def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_
             detail = "В загруженном архиве нет читаемых резюме." if uploaded_only else "В MongoDB ещё нет резюме."
             raise HTTPException(status_code=422, detail={"message": detail, "errors": errors})
         try:
-            similarities = calculate_corpus_similarities(candidates, vacancy, corpus_resumes, db.list_vacancies())
-            metrics = build_candidate_metrics(candidates, similarities)
+            similarities = calculate_corpus_similarities(
+                candidates, vacancy, corpus_resumes, corpus_vacancies, profile=LEMMA_PROFILE
+            )
+            results = cosine_results(candidates, similarities, vacancy)
             run_id = str(uuid.uuid4())
             if graph_db is not None:
-                results = graph_db.rank(run_id, vacancy, candidates, metrics)
-            else:
-                from scorer.benchmark import analyze_skills
-                from scorer.ranking import rank_result_rows
-
-                results = rank_result_rows(
-                    [
-                        {**metric, **analyze_skills(resume["skills"], required), "ranking_version": RANKING_VERSION}
-                        for resume, metric in zip(candidates, metrics)
-                    ]
+                graph_db.record_run(
+                    {
+                        "run_id": run_id,
+                        "vacancy_id": resolved_id,
+                        "vacancy_title": vacancy["title"],
+                        "ranking_version": COSINE_RANKING_VERSION,
+                        "results": results,
+                    },
+                    vacancy,
+                    candidates,
                 )
+        except EmptyVacancyError as exc:
+            raise HTTPException(422, str(exc)) from exc
         except Exception as exc:
             LOGGER.error("Scoring failed: %s", type(exc).__name__)
             raise HTTPException(status_code=503, detail="Не удалось рассчитать TF-IDF или получить рейтинг.") from exc
         if len(results) != len(candidates):
             raise HTTPException(status_code=503, detail="Получен неполный рейтинг.")
-        db.save_scoring_run(resolved_id, results, run_id=run_id)
+        save_run(
+            db,
+            vacancy,
+            candidates,
+            corpus_resumes,
+            corpus_vacancies,
+            results,
+            catalog,
+            LEMMA_PROFILE,
+            started,
+            run_id=run_id,
+        )
         return {
             "vacancy_id": resolved_id,
             "vacancy_title": vacancy["title"],
@@ -319,7 +342,7 @@ def _score_resumes(vacancy_title, vacancy_description, required_skills, vacancy_
             "results": results,
             "errors": errors,
             "resume_count": len(candidates),
-            "ranking_version": RANKING_VERSION,
+            "ranking_version": COSINE_RANKING_VERSION,
         }
     except PyMongoError as exc:
         LOGGER.error("MongoDB error: %s", type(exc).__name__)

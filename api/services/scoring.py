@@ -13,11 +13,11 @@ from fastapi import HTTPException
 
 from api.config import get_settings
 from api.services.documents import skill_catalog
+from scorer.cosine_ranking import COSINE_RANKING_VERSION, cosine_results
 from scorer.expression_catalog import CATALOG_VERSION
-from scorer.lemmatization import LEMMA_PROFILE, runtime_versions
-from scorer.text_similarity import calculate_corpus_similarities
+from scorer.lemmatization import runtime_versions
+from scorer.text_similarity import EmptyVacancyError, calculate_corpus_similarities
 from scorer.tfidf_features import TFIDF_PREPARATION_VERSION
-from scorer.weighted_ranking import LEMMATIZED_RANKING_VERSION, WEIGHTED_RANKING_VERSION, weighted_results
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def calculate_run(db, request, graph=None):
         from scorer.skill_matching import find_skill_mentions
 
         corpus_resumes = sorted(
-            [r for r in db.list_resumes() if not r.get("hidden") and r.get("anonymized_text", "").strip()],
+            [r for r in db.list_resumes() if not r.get("hidden")],
             key=lambda r: r["resume_id"],
         )
         catalog = list(
@@ -88,9 +88,7 @@ def calculate_run(db, request, graph=None):
         if request.resume_ids is not None:
             missing = [identifier for identifier in request.resume_ids if identifier not in active]
             if missing:
-                raise HTTPException(
-                    422, {"message": "Некоторые резюме отсутствуют, скрыты или не имеют текста.", "resume_ids": missing}
-                )
+                raise HTTPException(422, {"message": "Некоторые резюме отсутствуют или скрыты.", "resume_ids": missing})
             candidates = [active[identifier] for identifier in request.resume_ids]
         else:
             candidates = sorted(corpus_resumes, key=lambda r: r["resume_id"])
@@ -98,61 +96,80 @@ def calculate_run(db, request, graph=None):
             raise HTTPException(422, "Нет активных резюме для расчёта.")
         if len(candidates) > get_settings().max_documents:
             raise HTTPException(413, "Превышен лимит кандидатов. Передайте resume_ids меньшего размера.")
-        settings = get_settings()
-        parameters = {
-            "coverage_weight": request.coverage_weight
-            if request.coverage_weight is not None
-            else settings.coverage_weight,
-            "critical_multiplier": request.critical_multiplier
-            if request.critical_multiplier is not None
-            else settings.critical_multiplier,
-        }
         try:
             similarities = calculate_corpus_similarities(
                 candidates, vacancy, corpus_resumes, corpus_vacancies, profile=request.feature_profile
             )
-            version = (
-                LEMMATIZED_RANKING_VERSION if request.feature_profile == LEMMA_PROFILE else WEIGHTED_RANKING_VERSION
-            )
-            results = weighted_results(candidates, similarities, vacancy, **parameters, ranking_version=version)
+            results = cosine_results(candidates, similarities, vacancy)
+        except EmptyVacancyError as exc:
+            raise HTTPException(422, str(exc)) from exc
         except Exception as exc:
-            LOGGER.error("Weighted scoring failed: %s", type(exc).__name__)
+            LOGGER.error("Cosine scoring failed: %s", type(exc).__name__)
             raise HTTPException(503, "Не удалось рассчитать рейтинг.") from exc
-        run_id = str(uuid.uuid4())
-        inputs = [snapshot("vacancy", v) for v in corpus_vacancies] + [snapshot("resume", r) for r in corpus_resumes]
-        manifest = [{key: item[key] for key in ("kind", "document_id", "sha256")} for item in inputs]
-        corpus = {
-            "policy": "active-corpus-with-current-vacancy-v1",
-            "documents": manifest,
-            "sha256": hashlib.sha256(
-                json.dumps(sorted(manifest, key=lambda r: (r["kind"], r["document_id"])), sort_keys=True).encode()
-            ).hexdigest(),
-        }
-        metadata = {
-            "vacancy_title": vacancy["title"],
-            "ranking_version": version,
-            "parameters": {
-                **parameters,
-                "catalog_version": CATALOG_VERSION,
-                "catalog": catalog,
-                "tfidf_version": TFIDF_PREPARATION_VERSION,
-                "feature_profile": request.feature_profile,
-                "runtime_versions": runtime_versions(),
-            },
-            "corpus": corpus,
-            "duration_seconds": round(time.monotonic() - started, 4),
-        }
-        # History becomes visible only after all immutable inputs have been stored.
-        db.save_inputs(run_id, inputs)
-        db.save_scoring_run(vacancy["id"], results, run_id=run_id, metadata=metadata)
-        run = db.get_run(run_id)
-        if graph is not None:
-            try:
-                graph.record_run(run, vacancy, candidates)
-            except Exception as exc:
-                # MongoDB is authoritative; graph failure cannot invalidate a completed run.
-                LOGGER.warning("Optional graph mirror failed for run %s: %s", run_id, type(exc).__name__)
-        LOGGER.info(
-            "Scoring completed run_id=%s candidates=%d seconds=%.4f", run_id, len(results), metadata["duration_seconds"]
+        return save_run(
+            db,
+            vacancy,
+            candidates,
+            corpus_resumes,
+            corpus_vacancies,
+            results,
+            catalog,
+            request.feature_profile,
+            started,
+            graph=graph,
         )
-        return run
+
+
+def save_run(
+    db,
+    vacancy,
+    candidates,
+    corpus_resumes,
+    corpus_vacancies,
+    results,
+    catalog,
+    profile,
+    started,
+    *,
+    graph=None,
+    run_id=None,
+):
+    """Persist the same reproducibility metadata for either HTTP entry point."""
+    run_id = run_id or str(uuid.uuid4())
+    inputs = [snapshot("vacancy", v) for v in corpus_vacancies] + [snapshot("resume", r) for r in corpus_resumes]
+    manifest = [{key: item[key] for key in ("kind", "document_id", "sha256")} for item in inputs]
+    corpus = {
+        "policy": "active-corpus-with-current-vacancy-v1",
+        "documents": manifest,
+        "sha256": hashlib.sha256(
+            json.dumps(sorted(manifest, key=lambda r: (r["kind"], r["document_id"])), sort_keys=True).encode()
+        ).hexdigest(),
+    }
+    metadata = {
+        "vacancy_title": vacancy["title"],
+        "ranking_version": COSINE_RANKING_VERSION,
+        "parameters": {
+            "formula": "100 * cosine(tfidf(resume), tfidf(vacancy))",
+            "catalog_version": CATALOG_VERSION,
+            "catalog": catalog,
+            "tfidf_version": TFIDF_PREPARATION_VERSION,
+            "feature_profile": profile,
+            "runtime_versions": runtime_versions(),
+        },
+        "corpus": corpus,
+        "duration_seconds": round(time.monotonic() - started, 4),
+    }
+    # History becomes visible only after all immutable inputs have been stored.
+    db.save_inputs(run_id, inputs)
+    db.save_scoring_run(vacancy["id"], results, run_id=run_id, metadata=metadata)
+    run = db.get_run(run_id)
+    if graph is not None:
+        try:
+            graph.record_run(run, vacancy, candidates)
+        except Exception as exc:
+            # MongoDB is authoritative; graph failure cannot invalidate a completed run.
+            LOGGER.warning("Optional graph mirror failed for run %s: %s", run_id, type(exc).__name__)
+    LOGGER.info(
+        "Scoring completed run_id=%s candidates=%d seconds=%.4f", run_id, len(results), metadata["duration_seconds"]
+    )
+    return run

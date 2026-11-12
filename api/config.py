@@ -16,8 +16,6 @@ class Settings(BaseModel):
     max_batch_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
     max_text_bytes: int = Field(default=2 * 1024 * 1024, ge=1, le=2 * 1024 * 1024)
     max_parallel_scores: int = Field(default=1, ge=1, le=32)
-    coverage_weight: float = Field(default=0.7, ge=0, le=1, allow_inf_nan=False)
-    critical_multiplier: float = Field(default=2.0, gt=1, le=100, allow_inf_nan=False)
     neo4j_enabled: bool = False
     export_json: bool = False
 
@@ -30,8 +28,6 @@ def get_settings() -> Settings:
         "max_batch_bytes": "MAX_BATCH_BYTES",
         "max_text_bytes": "MAX_TEXT_BYTES",
         "max_parallel_scores": "MAX_PARALLEL_SCORES",
-        "coverage_weight": "SCORING_COVERAGE_WEIGHT",
-        "critical_multiplier": "SCORING_CRITICAL_MULTIPLIER",
         "neo4j_enabled": "NEO4J_ENABLED",
         "export_json": "EXPORT_ANONYMIZED_JSON",
     }
