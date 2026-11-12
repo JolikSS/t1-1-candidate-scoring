@@ -1,14 +1,15 @@
 import hashlib
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import mongomock
+from test_archive_ui import GraphDouble, archive
+
 import api.main as api
 from db.mongo_store import MongoStore
-from test_archive_ui import GraphDouble, archive
 
 
 class VacancyFieldsTests(unittest.TestCase):
@@ -35,7 +36,7 @@ class VacancyFieldsTests(unittest.TestCase):
         vacancy = self.upload()
         self.assertEqual(vacancy["required_skills"], ["Spark"])
         self.assertEqual(vacancy["preferred_skills"], ["Airflow"])
-        self.assertEqual(vacancy["parse_details"]["parser_version"], "vacancy-rules-1.2")
+        self.assertEqual(vacancy["parse_details"]["parser_version"], "vacancy-rules-2.0")
         self.db.save_resume({"resume_id": "r", "content_hash": "r", "anonymized_text": "Apache Spark and Airflow"})
         with patch.object(api, "calculate_corpus_similarities", wraps=api.calculate_corpus_similarities) as lexical:
             self.score(vacancy)

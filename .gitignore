@@ -231,3 +231,8 @@ __marimo__/
 # Private evaluation datasets, monitoring samples and generated reports
 /artifacts/
 /data/evaluation/
+
+# Local vacancy parser outputs and samples
+/result.json
+/parsed_vacancies.json
+/examples/vacancies.zip

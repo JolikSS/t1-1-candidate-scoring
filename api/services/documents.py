@@ -11,6 +11,7 @@ from fastapi import HTTPException
 
 from api.config import get_settings
 from Parser.resume_parser import ResumeParseError, extract_resume_text, parse_resume_bytes, parse_resume_text
+from Parser.vacancy_input import extract_vacancy_text
 from Parser.vacancy_parser import SKILL_CATALOG, VacancyParseError, parse_vacancy_bytes
 
 
@@ -104,7 +105,7 @@ def import_vacancies(db, documents, errors, *, parser=parse_vacancy_bytes, skip_
             vacancies[vacancy_id] = existing
             continue
         try:
-            text = extract_resume_text("vacancy." + kind, content)
+            text = extract_vacancy_text("vacancy." + kind, content)
             if len(text.encode("utf-8")) > get_settings().max_text_bytes:
                 raise VacancyParseError("Извлечённый текст превышает допустимый размер.")
             parsed = (
