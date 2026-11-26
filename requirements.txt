@@ -3,7 +3,8 @@ pypdf==6.21.4
 streamlit==1.49.1
 fastapi==0.128.8
 pydantic==2.13.4
-pymongo==4.19.0
+pymongo==4.18.3; python_version < '3.11'
+pymongo==4.19.0; python_version >= '3.11'
 python-multipart==0.0.32
 requests==2.34.2
 scikit-learn==1.6.1
