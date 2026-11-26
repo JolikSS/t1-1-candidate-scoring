@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scorer.calibration_gate import require_extraction_quality
 from scorer.evaluation import BenchmarkDataset, calibrate, dataset_audit, evaluate
 from scorer.lemmatization import FEATURE_PROFILES, LEMMA_PROFILE, runtime_versions
 
@@ -17,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", type=Path)
     parser.add_argument("--calibrate", action="store_true")
+    parser.add_argument("--extraction-report", type=Path, help="Independent skill recall report for real calibration")
     parser.add_argument("--audit-only", action="store_true")
     parser.add_argument("--require-tz-dataset", action="store_true")
     parser.add_argument("--split", choices=("train", "validation", "test"), default="test")
@@ -41,6 +43,17 @@ def main():
             "audit": audit,
             "runtime_versions": runtime_versions(),
         }
+        if args.calibrate and not args.audit_only and dataset.source == "real":
+            if args.extraction_report is None:
+                parser.error("Для реальной калибровки нужен --extraction-report с независимой проверкой recall.")
+            try:
+                report["extraction_gate"] = require_extraction_quality(
+                    json.loads(args.extraction_report.read_text(encoding="utf-8-sig"))
+                )
+            except (OSError, ValueError) as exc:
+                parser.error(str(exc))
+        if args.calibrate:
+            report["deployment_recommendation"] = "review" if dataset.source == "real" else "synthetic_smoke_only"
         if not args.audit_only:
             report["calibration" if args.calibrate else "evaluation"] = (
                 calibrate(dataset, profile=args.profile, corpus_policy=args.corpus_policy, k=args.k)
