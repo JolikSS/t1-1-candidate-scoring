@@ -1,16 +1,15 @@
-# Application, launcher and TF-IDF scoring.
-pypdf>=5.0,<7.0
-streamlit>=1.41,<1.50
-fastapi>=0.115,<0.129
-pydantic>=2.7,<3.0
-pymongo>=4.10,<5.0
-python-multipart>=0.0.20,<1.0
-requests>=2.31,<3.0
-scikit-learn>=1.4,<1.7
-numpy>=1.26,<3.0
-uvicorn>=0.30,<0.40
-neo4j>=5.28,<6.0
-python-dotenv>=1.0,<2
-psutil>=7.2.2,<8
-# Pin bundled dictionaries so the lemma profile has stable features.
+# Tested direct dependencies; Python 3.10-3.13. Full transitive locks: requirements-lock-*.txt.
+pypdf==6.21.4
+streamlit==1.49.1
+fastapi==0.128.8
+pydantic==2.13.4
+pymongo==4.19.0
+python-multipart==0.0.32
+requests==2.34.2
+scikit-learn==1.6.1
+numpy==2.2.6
+uvicorn==0.39.0
+neo4j==5.28.8
+python-dotenv==1.2.2
+psutil==7.2.2
 simplemma==1.2.0
