@@ -1,0 +1,16 @@
+{
+  "version": "context-v3.1-policy",
+  "weights_version": "context-v3-fresh-1",
+  "chosen": {
+    "threshold": 0.5
+  },
+  "policy": "Work calibration only: lower thresholds .35/.4 gave no recall gain; preserve .5. No weight retraining.",
+  "calibration": {
+    "documents": 8,
+    "selected_lines": 151,
+    "excluded_ambiguous_lines": 2,
+    "annotations_sha256": "7b03f1dbb84dcb6801899bd1089b25e307aa8b41f679f5922ccae91af2d8b83a",
+    "annotation_provenance": "assistant-reviewed selected excerpts; independent review pending"
+  },
+  "policy_frozen_before_new_holdout": true
+}

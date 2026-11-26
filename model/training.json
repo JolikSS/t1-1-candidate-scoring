@@ -1,0 +1,22 @@
+{
+  "version": "context-v3-fresh-1",
+  "seed": 42,
+  "epochs": 35,
+  "batch_size": 12,
+  "dropout": 0.2,
+  "blank_language": "xx",
+  "threshold": 0.5,
+  "threshold_policy": "Frozen from previous experiment; not recalibrated on this model or fresh holdout.",
+  "selection_sha256": "6167c441b8c49aa8cee6ea4dfb708b55609362216f235d4146323a362163a312",
+  "previous_annotations_sha256": "3b646610e7b327af7abd50293280a72e03d91d0482d28747f42db9e6a09ae9a0",
+  "fresh_train_annotations_sha256": "7ce54d087a05248d8d16ab7d901a96db8d5a5a2d32a3b8a97aa58e6436010380",
+  "training_code_sha256": "30c6f9969845178f38b5b493af8c07e9c4225af8a4d3b2d70817afc44ea869c3",
+  "tokenizer_code_sha256": "73909adc4e503bddb7842b3db66db3543e5c582a4e3ca4cc65c20d74804f0f22",
+  "train_lines": 687,
+  "train_spans": 1153,
+  "train_documents": 30,
+  "new_train_documents": 18,
+  "previous_validation_used": false,
+  "new_holdout_opened_before_training": false,
+  "annotation_scope": "assistant-reviewed selected excerpts; not independent full-document gold"
+}
