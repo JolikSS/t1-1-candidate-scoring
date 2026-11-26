@@ -6,13 +6,15 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
+from functools import cache
 from io import BytesIO
 from pathlib import Path
 
 from scorer.expression_catalog import DEFAULT_SKILLS
-from scorer.skill_matching import find_skill_mentions
+from scorer.skill_matching import canonical_skill_key, find_skill_mentions
 
 from Parser.document_structure import (
+    BULLET,
     clean_export_text,
     compile_headings,
     match_heading,
@@ -20,6 +22,8 @@ from Parser.document_structure import (
     select_job_title,
     title_candidate,
 )
+from Parser.resume_pdf import SKILL_BADGE_PREFIX, SUPERJOB, restore_superjob_skill_badges
+from Parser.resume_skill_matching import resume_skill_mentions
 
 
 class ResumeParseError(ValueError):
@@ -76,7 +80,14 @@ def _read_pdf(raw: bytes) -> str:
         reader = PdfReader(BytesIO(raw), strict=False)
         if reader.is_encrypted:
             raise ResumeParseError("PDF защищён паролем и не может быть прочитан.")
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        pages = [page.extract_text() or "" for page in reader.pages]
+        if pages and SUPERJOB.search(pages[0]):
+            try:
+                pages[0] = restore_superjob_skill_badges(reader.pages[0], pages[0])
+            except (AttributeError, ArithmeticError, TypeError, ValueError):
+                # Keep the extracted text if positional data cannot be read.
+                pass
+        return "\n".join(pages)
     except ResumeParseError:
         raise
     except Exception as exc:
@@ -121,7 +132,7 @@ def _legacy_sections(text: str) -> dict[str, list[str]]:
     return result
 
 
-PARSER_VERSION = "rules-2.9"
+PARSER_VERSION = "rules-2.15"
 EXTRA_ALIASES = {
     "title": {"desired position", "desired role", "job title", "должность", "желаемая должность и зарплата"},
     "summary": {"summary", "professional summary", "profile", "профессиональное резюме"},
@@ -135,6 +146,8 @@ EXTRA_ALIASES = {
         "образование и самообучение", "education and training",
     },
     "skills": {"technical skills", "core competencies", "технические навыки", "компетенции"},
+    "about": {"about me", "additional information", "о себе", "обо мне",
+              "дополнительные сведения", "дополнительная информация"},
 }
 ALIASES = {key: SECTION_ALIASES.get(key, set()) | EXTRA_ALIASES.get(key, set())
            for key in dict.fromkeys([*SECTION_ALIASES, *EXTRA_ALIASES])}
@@ -143,7 +156,25 @@ HEADINGS = compile_headings(ALIASES, {
         r"опыт работы\s+(?:более\s+)?\d+\s+(?:лет|года?|месяц(?:а|ев)?)(?:\s+(?:и\s+)?\d+\s+месяц(?:а|ев)?)?",
     ),
 })
-STOP_HEADING = re.compile(r"^(?:about me|о себе|обо мне|личная информация|контакты|требования|условия|personal information|personal details|contact details|contact information|references|recommendations|дополнительная информация)(?:\s*[:：].*)?\s*$", re.I)
+STOP_HEADING = re.compile(
+    r"(?:личная информация|личные данные|контакты|требования|условия|хобби|увлечения|личные интересы|"
+    r"иностранные языки|интересы|водительские права|personal information|personal details|contact details|"
+    r"contact information|references|recommendations|hobbies|interests|languages|driving licen[cs]e)"
+    r"(?:\s*[:：—–-].*)?\s*", re.I,
+)
+PERSONAL_NOTE = re.compile(
+    r"^(?:(?:я\s+)?(?:меня зовут|мо[её] имя|живу|люблю|увлекаюсь|в свободное время|"
+    r"(?:хочу|планирую|собираюсь)\s+(?:изучить|освоить))|"
+    r"my name is|i live|i enjoy|in my spare time|i (?:plan|want) to learn)\b", re.I,
+)
+NAME_INTRO = re.compile(r"^[Яя]\s+[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,2}\s*[,;:—–]\s*")
+WORK_NOTE = re.compile(
+    r"\b(?:опыт\s+(?:работы|разработки|тестирования|администрирования)|"
+    r"(?:работа(?:ю|л[аи]?)\s+(?:с|на|над)|разработал[аи]?|разрабатыва(?:ю|л[аи]?)|"
+    r"реализовал[аи]?|тестировал[аи]?|администрировал[аи]?)|"
+    r"(?:чат[- ]?бот\w*|дипломн\w+ проект\w*|веб[- ]?(?:сервис|приложени)\w*)|"
+    r"worked with|developed|implemented|maintained|configured|software development|chatbots?)\b", re.I,
+)
 MONTH = r"(?:январ[ьяь]|феврал[ьяь]|март[а]?|апрел[ьяь]|ма[йя]|июн[ьяь]|июл[ьяь]|август[а]?|сентябр[ьяь]|октябр[ьяь]|ноябр[ьяь]|декабр[ьяь]|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 DATE_POINT = rf"(?:(?:\d{{1,2}}[./])?\d{{4}}|{MONTH}\s+\d{{4}})"
 DATE_RANGE = re.compile(rf"\b{DATE_POINT}\s*(?:[-–—]|to|по)\s*(?:{DATE_POINT}|present|current|настоящее время|по настоящее время|работает сейчас|н\.\s*в\.)", re.I)
@@ -164,6 +195,10 @@ def clean_professional_line(line: str, catalog: list[str] | None = None, *, expl
     for index, date in enumerate(dates):
         safe = safe.replace(f"DATEPLACEHOLDER{index}END", date)
     return safe
+
+
+def _is_work_note(line: str, catalog: list[str]) -> bool:
+    return not PERSONAL_NOTE.match(line) and bool(WORK_NOTE.search(line) or resume_skill_mentions(line, catalog))
 
 
 EMPLOYMENT = re.compile(
@@ -228,22 +263,117 @@ def _superjob_header_title(text: str, export_title: str):
     return None
 
 
-def _structured_sections(text: str, catalog: list[str], *, source_layout: str = "unknown", export_title: str = "") -> dict:
+SKILL_LIST_SEPARATOR = re.compile(r"[,;|•●]")
+BADGE_LIST_TOKEN = re.compile(r"[()\[\],;|]|\s+/\s+")
+UNLISTED_SKILL_NAME = re.compile(r"[^\W\d_][\w.+#-]{1,47}")
+NON_SKILL_BADGE = re.compile(
+    r"^(?:водительск\w*\s+(?:удостоверени\w*|прав\w*)|не\s|без\s|нет\s+опыта|"
+    r"(?:not|never|without)\s)", re.I,
+)
+
+
+def _unlisted_skill_items(line: str, catalog_keys: set[str]) -> list[tuple[str, str]]:
+    names = [part.strip().rstrip(".") for part in SKILL_LIST_SEPARATOR.split(line) if part.strip()]
+    entries = [(canonical_skill_key(name), name) for name in names]
+    # A prose fragment makes the line unsuitable as a literal list of names.
+    if any(key not in catalog_keys and not UNLISTED_SKILL_NAME.fullmatch(name) for key, name in entries):
+        return []
+    return [(key, name) for key, name in entries if key not in catalog_keys]
+
+
+def _badge_skill_parts(name: str, catalog: list[str], catalog_keys: set[str]) -> list[str]:
+    if canonical_skill_key(name) in catalog_keys:
+        return [name]
+
+    separators = []
+    closing_brackets = []
+    for match in BADGE_LIST_TOKEN.finditer(name):
+        token = match.group()
+        if token in {"(", "["}:
+            closing_brackets.append(")" if token == "(" else "]")
+        elif token in {")", "]"}:
+            if not closing_brackets or closing_brackets.pop() != token:
+                return [name]
+        elif not closing_brackets:
+            separators.append(match)
+    if closing_brackets or not separators:
+        return [name]
+
+    # A spaced slash may be part of a known name, even within a list.
+    known = resume_skill_mentions(name, catalog)
+    parts = []
+    start = 0
+    for separator in separators:
+        left, right = separator.span()
+        if any(mention.start <= left and right <= mention.end for mention in known):
+            continue
+        parts.append(name[start:left].strip())
+        start = right
+    parts.append(name[start:].strip())
+    if any(not any(char.isalpha() for char in part) or NON_SKILL_BADGE.match(part) or PERSONAL_NOTE.match(part)
+           for part in parts):
+        return [name]
+    return parts
+
+
+def _known_skills_and_evidence(
+    sections: dict[str, str], catalog: list[str],
+) -> tuple[list[str], list[dict[str, str]]]:
+    names = {}
+    for skill in catalog:
+        if isinstance(skill, str) and skill.strip():
+            names.setdefault(canonical_skill_key(skill), " ".join(skill.split()))
+
+    found = set()
+    evidence = []
+    for section, value in sections.items():
+        quotes = {}
+        for mention in resume_skill_mentions(value, catalog):
+            start = value.rfind("\n", 0, mention.start) + 1
+            end = value.find("\n", mention.end)
+            if end == -1:
+                end = len(value)
+            quotes[mention.canonical, start, end] = value[start:end]
+            found.add(mention.canonical)
+        for (key, _, _), quote in quotes.items():
+            evidence.append({"skill": names[key], "section": section, "text": quote})
+    return [name for key, name in names.items() if key in found], evidence
+
+
+def _structured_sections(
+    text: str,
+    catalog: list[str],
+    *,
+    source_layout: str = "unknown",
+    export_title: str = "",
+    include_unlisted_skills: bool = False,
+) -> tuple[dict, list[str]]:
     sections = {key: [] for key in ALIASES}
-    active = ""
+    sections["unclassified"] = []
+    catalog_keys = {canonical_skill_key(skill) for skill in catalog if isinstance(skill, str) and skill.strip()}
+    unlisted = {}
+    active = "unclassified"
     ignored = 0
     headings = 0
+    lines = text.replace("\x00", "").splitlines()
+    badge_rows = {}
+    if source_layout == "superjob":
+        for index, raw in enumerate(lines):
+            if raw.startswith(SKILL_BADGE_PREFIX):
+                badges = [badge.strip() for badge in raw.split(SKILL_BADGE_PREFIX)[1:]]
+                badge_rows[index + 1] = badges
+                lines[index] = " ".join(badges)
     title, title_details, warnings = select_job_title(
-        text.splitlines(), HEADINGS,
+        lines, HEADINGS,
         boundaries=set(HEADINGS) - {"title", "skills", "summary"},
         known_terms=catalog,
     )
     if source_layout == "superjob" and title_details.get("method") != "explicit_title":
-        selected = _superjob_header_title(text, export_title)
+        selected = _superjob_header_title("\n".join(lines), export_title)
         if selected:
             title, title_details = selected
             warnings = [w for w in warnings if w not in {"missing_title", "ambiguous_title", "possible_wrapped_title"}]
-    for line_number, raw in enumerate(text.replace("\x00", "").splitlines(), 1):
+    for line_number, raw in enumerate(lines, 1):
         line = normalize_line(raw)
         if not line:
             if active and sections[active] and sections[active][-1] != "":
@@ -253,13 +383,10 @@ def _structured_sections(text: str, catalog: list[str], *, source_layout: str = 
                 title_details.get("end_line_number", title_details.get("line_number", -1))):
             if line_number == title_details.get("line_number") and title_details.get("leading_skills"):
                 sections["skills"].append(title_details["leading_skills"])
-            active = ""
+            active = "unclassified"
             continue
-        if active in {"", "skills", "summary"} and (EMPLOYMENT.fullmatch(line) or SALARY_ONLY.fullmatch(line)):
-            active = ""
-            continue
-        if re.fullmatch(r"Иностранные языки|Водительские права|Languages|Driving licen[cs]e", line, re.I):
-            active = ""
+        if active in {"unclassified", "skills", "summary"} and (EMPLOYMENT.fullmatch(line) or SALARY_ONLY.fullmatch(line)):
+            active = "unclassified"
             continue
         if STOP_HEADING.fullmatch(line):
             active = ""
@@ -272,7 +399,7 @@ def _structured_sections(text: str, catalog: list[str], *, source_layout: str = 
         if heading and heading.label in {"обязанности", "обязанности и достижения"} and active == "experience":
             heading = None
         if heading:
-            active = "" if heading.section == "title" else heading.section
+            active = "unclassified" if heading.section == "title" else heading.section
             headings += 1
             line = heading.content
             if not line:
@@ -284,8 +411,31 @@ def _structured_sections(text: str, catalog: list[str], *, source_layout: str = 
             ignored += 1
             continue
         safe = clean_professional_line(line, catalog, explicit_role=active == "title")
+        if active in {"about", "unclassified"}:
+            safe = NAME_INTRO.sub("", safe)
+            if not _is_work_note(safe, catalog) or (active == "unclassified" and title_candidate(safe)):
+                ignored += 1
+                continue
         if safe:
             sections[active].append(safe)
+            if include_unlisted_skills and active == "skills":
+                badges = badge_rows.get(line_number)
+                if badges:
+                    for badge in badges:
+                        name = clean_professional_line(badge, catalog)
+                        if not name or NON_SKILL_BADGE.match(name) or PERSONAL_NOTE.match(name):
+                            continue
+                        for part in _badge_skill_parts(name, catalog, catalog_keys):
+                            skill = name if part == name else clean_professional_line(part, catalog)
+                            if not skill:
+                                continue
+                            key = canonical_skill_key(skill)
+                            plain_key = re.sub(r"^(?:ms|microsoft) +", "", key)
+                            if key not in catalog_keys and plain_key not in catalog_keys:
+                                unlisted.setdefault(key, {"skill": skill, "section": "skills", "text": name})
+                elif heading or BULLET.match(raw.lstrip()) or SKILL_LIST_SEPARATOR.search(safe):
+                    for key, name in _unlisted_skill_items(safe, catalog_keys):
+                        unlisted.setdefault(key, {"skill": name, "section": "skills", "text": safe})
     sections = {key: "\n".join(lines).strip() for key, lines in sections.items()}
     sections["title"] = title
     for key in ("experience", "education"):
@@ -297,26 +447,16 @@ def _structured_sections(text: str, catalog: list[str], *, source_layout: str = 
         warnings.append("unclassified_lines")
     if not headings:
         warnings.append("no_recognized_sections")
-    if "\t" in text or any(len(line) > 500 for line in text.splitlines()):
+    if "\t" in text or any(len(line) > 500 for line in lines):
         warnings.append("check_text_order")
     entries = _experience_entries(sections["experience"], warnings, source_layout=source_layout)
-    evidence = [{"skill": skill, "section": key, "text": line}
-                for key, value in sections.items() for line in value.splitlines()
-                for skill in find_skill_mentions(line, catalog)]
-    # Include evidence for multi-line expressions such as REST / API.
-    evidenced = {item["skill"] for item in evidence}
-    for key, value in sections.items():
-        lines = value.splitlines()
-        for index in range(len(lines) - 1):
-            fragment = lines[index] + "\n" + lines[index + 1]
-            for skill in find_skill_mentions(fragment, catalog):
-                if skill not in evidenced:
-                    evidence.append({"skill": skill, "section": key, "text": fragment})
-                    evidenced.add(skill)
+    skills, evidence = _known_skills_and_evidence(sections, catalog)
+    evidence.extend(unlisted.values())
     catalog_hash = hashlib.sha256(json.dumps(sorted(set(catalog)), ensure_ascii=False).encode()).hexdigest()
-    return {"parser_version": PARSER_VERSION, "catalog_version": catalog_hash, "title_selection": title_details,
-            "sections": sections, "experience_entries": entries, "skill_evidence": evidence,
-            "warnings": sorted(set(warnings)), "source_mode": "original"}
+    details = {"parser_version": PARSER_VERSION, "catalog_version": catalog_hash, "title_selection": title_details,
+               "sections": sections, "experience_entries": entries, "skill_evidence": evidence,
+               "warnings": sorted(set(warnings)), "source_mode": "original"}
+    return details, skills + [item["skill"] for item in unlisted.values()]
 
 
 def _experience_entries(experience: str, warnings: list[str], *, source_layout: str = "unknown") -> list[dict]:
@@ -440,8 +580,43 @@ def extract_resume_text(file_name: str, content: bytes) -> str:
     raise ResumeParseError("Поддерживаются только PDF и TXT.")
 
 
-def parse_resume_bytes(file_name: str, content: bytes, skill_catalog: list[str] | None = None) -> ParsedResume:
-    return parse_resume_text(extract_resume_text(file_name, content), skill_catalog)
+def parse_resume_bytes(
+    file_name: str,
+    content: bytes,
+    skill_catalog: list[str] | None = None,
+    *,
+    include_unlisted_skills: bool | None = None,
+) -> ParsedResume:
+    return parse_resume_text(
+        extract_resume_text(file_name, content), skill_catalog, include_unlisted_skills=include_unlisted_skills,
+    )
+
+
+def _extend_skill_catalog(base: tuple[str, ...], path: Path) -> list[str]:
+    try:
+        extra_skills = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Файл --skills должен содержать корректный JSON в UTF-8.") from exc
+    if not isinstance(extra_skills, list) or any(not isinstance(skill, str) or not skill.strip() for skill in extra_skills):
+        raise ValueError("Файл --skills должен содержать JSON-массив непустых строк.")
+
+    catalog = {canonical_skill_key(skill): skill for skill in base}
+    for skill in extra_skills:
+        name = " ".join(skill.split())
+        catalog.setdefault(canonical_skill_key(name), name)
+    return list(catalog.values())
+
+
+@cache
+def default_resume_skill_catalog() -> tuple[str, ...]:
+    """Return the shared names and the built-in additions for resumes."""
+    path = Path(__file__).with_name("resume_skills.json")
+    return tuple(_extend_skill_catalog(DEFAULT_SKILLS, path))
+
+
+def load_resume_skill_catalog(path: Path) -> list[str]:
+    """Extend the default resume catalog with the names from a JSON array."""
+    return _extend_skill_catalog(default_resume_skill_catalog(), path)
 
 
 def redact_identifiers(text: str) -> str:
@@ -452,8 +627,13 @@ def redact_identifiers(text: str) -> str:
     return pattern.sub(lambda m: m.group() if m[1] in {"России", "Союза", "Адмирала"} else "[имя удалено]", text)
 
 
-def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> ParsedResume:
-    """Parse in memory; no original filename or raw text is retained in the result."""
+def parse_resume_text(
+    raw_text: str,
+    skill_catalog: list[str] | None = None,
+    *,
+    include_unlisted_skills: bool | None = None,
+) -> ParsedResume:
+    """Parse in memory; an explicit catalog limits skills unless discovery is enabled."""
     if not isinstance(raw_text, str):
         raise ResumeParseError("Текст резюме должен быть строкой.")
     if not raw_text.replace("\x00", "").strip():
@@ -462,25 +642,32 @@ def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> 
     raw_text = re.sub(r"\*{4,}", "", raw_text)
     raw_text = re.sub(r"(?m)^[ \t]*\*[ \t]*$", "", raw_text)
     raw_text = redact_identifiers(raw_text)
-    catalog = list(DEFAULT_SKILLS) if skill_catalog is None else skill_catalog
-    source_layout = ("superjob" if re.search(r"\bSuperJob\b|superjob\.ru", raw_text, re.I)
+    catalog = list(default_resume_skill_catalog()) if skill_catalog is None else skill_catalog
+    if include_unlisted_skills is None:
+        include_unlisted_skills = skill_catalog is None
+    source_layout = ("superjob" if SUPERJOB.search(raw_text)
                      else "hh" if re.search(r"hh\.ru|HeadHunter", raw_text, re.I) else "unknown")
-    details = _structured_sections(
+    details, skills = _structured_sections(
         _join_wrapped_dates(clean_export_text(raw_text)), catalog, source_layout=source_layout,
         export_title=_superjob_export_title(raw_text),
+        include_unlisted_skills=include_unlisted_skills and bool(catalog),
     )
     extracted = details["sections"]
     experience = extracted["experience"]
     education = extracted["education"]
     title = extracted["title"]
     professional = "\n\n".join(value for value in extracted.values() if value)
-    skills = find_skill_mentions(professional, catalog)
     # Raw input is intentionally not returned: it may contain personal data.
     return ParsedResume("", None, professional, professional, skills,
                         experience, education, title, details)
 
 
-def parse_resume(path: str | Path, skill_catalog: list[str] | None = None) -> ParsedResume:
+def parse_resume(
+    path: str | Path,
+    skill_catalog: list[str] | None = None,
+    *,
+    include_unlisted_skills: bool | None = None,
+) -> ParsedResume:
     source = Path(path)
     if not source.is_file():
         raise ResumeParseError("Файл резюме не найден.")
@@ -488,4 +675,4 @@ def parse_resume(path: str | Path, skill_catalog: list[str] | None = None) -> Pa
         content = source.read_bytes()
     except OSError as exc:
         raise ResumeParseError("Не удалось прочитать файл резюме.") from exc
-    return parse_resume_bytes(source.name, content, skill_catalog)
+    return parse_resume_bytes(source.name, content, skill_catalog, include_unlisted_skills=include_unlisted_skills)
