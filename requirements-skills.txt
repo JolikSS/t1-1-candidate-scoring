@@ -1,0 +1,2 @@
+-r requirements-parser.txt
+spacy==3.8.18

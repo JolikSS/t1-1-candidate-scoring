@@ -7,6 +7,7 @@ import unittest
 import zipfile
 from unittest.mock import patch
 import mongomock
+import requests
 from fastapi import HTTPException, UploadFile
 from streamlit.testing.v1 import AppTest
 import api.main as api
@@ -119,9 +120,10 @@ class ArchiveFlowTests(unittest.TestCase):
         vacancy = {"id": "test", "title": "Python", "description": "Python", "required_skills": ["Python"]}
         rows = [{"candidate": "Candidate A", "score": 100, "text_similarity": 12,
                  "matched_skills": ["Python"], "missing_skills": []}]
-        with patch("requests.get") as get, patch("requests.post") as post:
+        run = {"run_id": "r1", "vacancy_title": "Python", "results": rows}
+        with patch("requests.get") as get, patch("requests.request") as request:
             get.return_value.json.return_value = [vacancy]
-            post.return_value.json.return_value = {"vacancy_title": "Python", "results": rows, "errors": []}
+            request.return_value.json.side_effect = lambda: [] if request.call_args.args[0] == "GET" else run
             app = AppTest.from_file("ui/app.py").run()
             app.selectbox[0].select(vacancy).run()
             self.assertFalse(app.button[0].disabled)
@@ -130,8 +132,47 @@ class ArchiveFlowTests(unittest.TestCase):
             self.assertEqual(len(app.dataframe[0].value), 1)
             self.assertEqual(len(app.dataframe[0].value.columns), 6)
             self.assertIn("TF-IDF, сходство (0–100)", app.dataframe[0].value.columns)
-            self.assertIsNone(post.call_args.kwargs["files"])
-            self.assertEqual(post.call_args.kwargs["data"]["uploaded_only"], "false")
+            posts = [c for c in request.call_args_list if c.args[0] == "POST"]
+            self.assertEqual(len(posts), 1)
+            self.assertTrue(posts[0].args[1].endswith("/scoring-runs"))
+            self.assertEqual(posts[0].kwargs["json"], {"vacancy_id": "test"})
+            self.assertEqual(app.session_state["run"]["payload"], run)
+            self.assertEqual(set(app.session_state["run"]), {"payload", "signature"})
+
+    def test_ui_shows_api_unavailable(self):
+        with patch("requests.get", side_effect=requests.ConnectionError("down")):
+            app = AppTest.from_file("ui/app.py").run()
+        self.assertFalse(app.exception)
+        self.assertIn("API недоступен", app.warning[0].value)
+
+    def test_ui_failure_clears_previous_run(self):
+        vacancy = {"id": "test", "title": "Python", "description": "", "required_skills": []}
+        with patch("requests.get") as get, patch("requests.request") as request:
+            get.return_value.json.return_value = [vacancy]
+            request.return_value.json.return_value = []
+            app = AppTest.from_file("ui/app.py").run()
+            app.selectbox[0].select(vacancy).run()
+            app.session_state["run"] = {"payload": {"vacancy_title": "Old", "results": []},
+                                        "signature": (None, "test", None)}
+            request.side_effect = requests.ConnectionError("down")
+            app.button[0].click().run()
+        self.assertNotIn("run", app.session_state)
+        self.assertTrue(any("API недоступен" in e.value for e in app.error))
+
+    def test_ui_opens_old_run_from_history(self):
+        vacancy = {"id": "test", "title": "Python", "description": "", "required_skills": []}
+        summary = {"run_id": "old", "vacancy_id": "test", "created_at": "2026-01-01T10:00:00",
+                   "ranking_version": "v", "resume_count": 3}
+        old = {"run_id": "old", "vacancy_title": "Python", "results": []}
+        with patch("requests.get") as get, patch("requests.request") as request:
+            get.return_value.json.return_value = [vacancy]
+            request.return_value.json.side_effect = lambda: (
+                [summary] if request.call_args.args[1].endswith("/scoring-runs") else old)
+            app = AppTest.from_file("ui/app.py").run()
+            app.selectbox[0].select(vacancy).run()
+            app.button[1].click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state["run"]["payload"], old)
 
 
 class PipelineTests(unittest.TestCase):

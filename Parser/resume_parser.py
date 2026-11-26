@@ -1,4 +1,4 @@
-"""Extract only useful, de-identified resume fields from text PDFs and TXT."""
+
 
 from __future__ import annotations
 
@@ -586,9 +586,11 @@ def parse_resume_bytes(
     skill_catalog: list[str] | None = None,
     *,
     include_unlisted_skills: bool | None = None,
+    skill_backend: str = "regex",
 ) -> ParsedResume:
     return parse_resume_text(
-        extract_resume_text(file_name, content), skill_catalog, include_unlisted_skills=include_unlisted_skills,
+        extract_resume_text(file_name, content), skill_catalog,
+        include_unlisted_skills=include_unlisted_skills, skill_backend=skill_backend,
     )
 
 
@@ -632,6 +634,7 @@ def parse_resume_text(
     skill_catalog: list[str] | None = None,
     *,
     include_unlisted_skills: bool | None = None,
+    skill_backend: str = "regex",
 ) -> ParsedResume:
     """Parse in memory; an explicit catalog limits skills unless discovery is enabled."""
     if not isinstance(raw_text, str):
@@ -657,6 +660,19 @@ def parse_resume_text(
     education = extracted["education"]
     title = extracted["title"]
     professional = "\n\n".join(value for value in extracted.values() if value)
+    details["skill_backend"] = skill_backend
+    if skill_backend != "regex":
+        # Keep main's explicit backend interface. The default regex path retains
+        # resume-specific polarity, PDF badges and optional unlisted skills.
+        skills = find_skill_mentions(professional, catalog, backend=skill_backend)
+        from scorer.skill_matching import skill_mentions
+
+        details["skill_evidence"] = [
+            {"skill": m.name, "section": "professional_text", "text": m.text,
+             "start": m.start, "end": m.end}
+            for m in skill_mentions(professional, catalog, backend=skill_backend)
+            if not m.negated
+        ]
     # Raw input is intentionally not returned: it may contain personal data.
     return ParsedResume("", None, professional, professional, skills,
                         experience, education, title, details)
@@ -667,6 +683,7 @@ def parse_resume(
     skill_catalog: list[str] | None = None,
     *,
     include_unlisted_skills: bool | None = None,
+    skill_backend: str = "regex",
 ) -> ParsedResume:
     source = Path(path)
     if not source.is_file():
@@ -675,4 +692,7 @@ def parse_resume(
         content = source.read_bytes()
     except OSError as exc:
         raise ResumeParseError("Не удалось прочитать файл резюме.") from exc
-    return parse_resume_bytes(source.name, content, skill_catalog, include_unlisted_skills=include_unlisted_skills)
+    return parse_resume_bytes(
+        source.name, content, skill_catalog,
+        include_unlisted_skills=include_unlisted_skills, skill_backend=skill_backend,
+    )

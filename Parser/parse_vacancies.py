@@ -16,7 +16,7 @@ MAX_BATCH_BYTES = 100 * 1024 * 1024
 MAX_DOCUMENTS = 200
 
 
-def parse_path(source: Path, skill_catalog: list[str] | None = None) -> dict:
+def parse_path(source: Path, skill_catalog: list[str] | None = None, *, skill_backend: str = "regex") -> dict:
     """Isolate document errors; never extract archive paths to the filesystem."""
     results, errors, duplicates = [], [], []
     seen = set()
@@ -41,7 +41,7 @@ def parse_path(source: Path, skill_catalog: list[str] | None = None) -> dict:
             return
         try:
             text = extract_vacancy_text(name, content)
-            parsed = parse_vacancy_text(text, skill_catalog)
+            parsed = parse_vacancy_text(text, skill_catalog, skill_backend=skill_backend)
         except VacancyParseError as exc:
             error(name, exc)
             return
@@ -100,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("input", type=Path, help="Путь к PDF, TXT, ZIP или папке")
     parser.add_argument("-o", "--output", type=Path, default=Path("parsed_vacancies.json"))
     parser.add_argument("--skills", type=Path, help="JSON-массив дополнительных навыков для общего каталога")
+    parser.add_argument("--skill-backend", choices=("regex", "spacy"), default="regex")
     args = parser.parse_args(argv)
     try:
         catalog = None
@@ -110,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             catalog = list(dict.fromkeys([*SKILL_CATALOG, *(x.strip() for x in extra)]))
         if args.input.is_file() and args.input.resolve() == args.output.resolve():
             raise VacancyParseError("Выходной JSON не должен заменять входной файл.")
-        report = parse_path(args.input, catalog)
+        report = parse_path(args.input, catalog, skill_backend=args.skill_backend)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         from tempfile import NamedTemporaryFile
 
@@ -128,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Готово: {summary['parsed']} вакансий, ошибок: {summary['errors']}, "
               f"повторов: {summary['duplicates']}. JSON: {args.output}")
         return 1 if report["errors"] else 0
-    except (VacancyParseError, OSError, ValueError) as exc:
+    except (VacancyParseError, OSError, ValueError, RuntimeError) as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return 2
 

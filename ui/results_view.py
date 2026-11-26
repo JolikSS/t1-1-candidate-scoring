@@ -18,4 +18,4 @@ def render_results():
     st.caption("Порядок: покрытие обязательных навыков, затем сходство TF-IDF. "
                "Сходство не является вероятностью пригодности кандидата.")
     st.dataframe(table, hide_index=True, use_container_width=True)
-    api_client.show_errors(payload["errors"])
+    api_client.show_errors(payload.get("errors", []))

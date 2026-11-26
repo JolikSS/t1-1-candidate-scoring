@@ -267,6 +267,11 @@ def calibrate(
     if {j.label for j in dataset.judgments if j.split == "validation"} != {0, 1}:
         raise ValueError("Calibration requires both classes in the validation split")
     queries = prepared_queries(dataset, "validation", profile=profile, corpus_policy=corpus_policy)
+    has_critical = any(query["vacancy"].get("critical_skills") for query in queries)
+    if not has_critical:
+        # Without marked critical skills this parameter has no effect on any score.
+        # Preserve the live default rather than selecting an arbitrary grid tie.
+        multipliers = (2.0,)
     trials = []
     for weight in weights:
         for multiplier in multipliers:
@@ -297,6 +302,7 @@ def calibrate(
     )
     report = {
         "selection_split": "validation",
+        "critical_multiplier_identifiable": has_critical,
         "objective": "f1, then ndcg_at_k; deterministic parameter tie break",
         "trials": len(trials),
         "selected": best["parameters"],

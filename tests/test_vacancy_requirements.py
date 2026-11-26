@@ -30,7 +30,7 @@ class VacancyRequirementTests(unittest.TestCase):
                 )
                 self.assertEqual(parsed.requirements, "Python")
                 self.assertIn("Docker", parsed.description)
-                self.assertIn("Обучение Kubernetes", parsed.description)
+                self.assertNotIn("Обучение Kubernetes", parsed.description)
 
     def test_preferred_only_vacancy_does_not_invent_mandatory_skills(self):
         self.assert_skills("Будет плюсом: Docker, Postgres", [], ["PostgreSQL", "Docker"])

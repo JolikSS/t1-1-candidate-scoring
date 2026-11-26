@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from scorer.skill_matching import canonical_skill_key, find_skill_mentions
+from scorer.professional_expressions import COORDINATED_TESTS
+from scorer.skill_matching import canonical_skill_key, find_skill_mentions, skill_mentions
 
 QUALIFIERS = {
     "not_required": re.compile(
@@ -13,7 +14,8 @@ QUALIFIERS = {
         r"нуж(?:ен|на|но|ны)|явля(?:ется|ются)\s+обязательн(?:ым|ыми))|"
         r"необязател(?:ен|ьн(?:о|а|ы))|(?:без|нет)\s+(?:опыта|знаний|навыков)|"
         r"not\s+(?:required|mandatory|necessary)|"
-        r"(?:no|without)\s+(?:experience|knowledge|skills)(?:\s+required)?)\b", re.I,
+        r"(?:no|without)\s+(?:experience|knowledge|skills)(?:\s+required)?|"
+        r"обучим|научим|обучаем\s+с\s+нуля|we\s+(?:will\s+)?teach)\b", re.I,
     ),
     "preferred": re.compile(
         r"\b(?:буд(?:ет|ут)\s+(?:(?:большим|дополнительным)\s+)?(?:плюсом|преимуществом)|"
@@ -38,7 +40,7 @@ class SkillClassification:
     warnings: list[str] = field(default_factory=list)
 
 
-def _qualifier(text: str, catalog: list[str]) -> tuple[str, bool] | None:
+def _qualifier(text: str, catalog: list[str], backend: str = "regex") -> tuple[str, bool] | None:
     """Return status and whether its marker follows a skill in this list item."""
     markers = []
     negative_spans = [match.span() for match in QUALIFIERS["not_required"].finditer(text)]
@@ -53,22 +55,28 @@ def _qualifier(text: str, catalog: list[str]) -> tuple[str, bool] | None:
     if len({status for status, _ in markers}) > 1:
         return "ambiguous", False
     status, start = min(markers, key=lambda marker: marker[1])
-    return status, bool(find_skill_mentions(text[:start], catalog))
+    return status, bool(find_skill_mentions(text[:start], catalog, backend=backend))
 
 
-def _classify_clause(text: str, default: str, catalog: list[str]) -> list[tuple[str, str, str]]:
+def _classify_clause(text: str, default: str, catalog: list[str], backend: str = "regex") -> list[tuple[str, str, str]]:
     """Resolve list qualifiers within one clause; never carry them to another."""
     classified: list[tuple[str, str, str]] = []
     inherited = None
-    for item in LIST_BREAK.split(text):
+    protected = [match.span() for match in COORDINATED_TESTS.finditer(text)]
+    boundaries = [match for match in LIST_BREAK.finditer(text)
+                  if not any(left <= match.start() < right for left, right in protected)]
+    starts = [0, *(match.end() for match in boundaries)]
+    ends = [*(match.start() for match in boundaries), len(text)]
+    for left, right in zip(starts, ends):
+        item = text[left:right]
         item = item.strip(" \t,•*-–—")
         if not item:
             continue
-        marker = _qualifier(item, catalog)
+        marker = _qualifier(item, catalog, backend)
         if marker:
             status, follows_skill = marker
             local_marker = any(
-                _qualifier(group, catalog) for group in re.findall(r"\(([^()]*)\)", item)
+                _qualifier(group, catalog, backend) for group in re.findall(r"\(([^()]*)\)", item)
             )
             if follows_skill and inherited is None and not local_marker:
                 # 'Python, SQL are preferred': apply the trailing qualifier to
@@ -85,7 +93,8 @@ def _classify_clause(text: str, default: str, catalog: list[str]) -> list[tuple[
 
 
 def classify_vacancy_skills(
-    requirements: list[str], preferred: list[str], catalog: list[str],
+    requirements: list[str], preferred: list[str], catalog: list[str], *, backend: str = "regex",
+    other_sections: dict[str, list[str]] | None = None,
 ) -> SkillClassification:
     """Classify known positive mentions; preserve evidence for review.
 
@@ -96,15 +105,26 @@ def classify_vacancy_skills(
     """
     result = SkillClassification()
     statuses: dict[str, set[str]] = {}
-    for section, lines, default in (
-        ("requirements", requirements, "required"), ("preferred", preferred, "preferred"),
-    ):
+    sections = [("requirements", requirements, "required"), ("preferred", preferred, "preferred")]
+    sections.extend((name, lines, name) for name, lines in (other_sections or {}).items()
+                    if name not in {"requirements", "preferred"})
+    for section, lines, default in sections:
         for line in lines:
-            for clause in CLAUSE_BREAK.split(line):
-                for text, status, rule in _classify_clause(clause, default, catalog):
-                    for skill in find_skill_mentions(text, catalog):
+            spans = [(m.start, m.end) for m in skill_mentions(line, catalog, backend=backend)]
+            breaks = [m for m in CLAUSE_BREAK.finditer(line)
+                      if not any(left <= m.start() < right for left, right in spans)]
+            starts = [0, *(m.end() for m in breaks)]
+            ends = [*(m.start() for m in breaks), len(line)]
+            for left, right in zip(starts, ends):
+                clause = line[left:right]
+                for text, status, rule in _classify_clause(clause, default, catalog, backend):
+                    # Explicit markers outside requirement sections remain contextual.
+                    if default not in {"required", "preferred"} and status != "not_required":
+                        status, rule = default, "section_context"
+                    for skill in find_skill_mentions(text, catalog, backend=backend):
                         key = canonical_skill_key(skill)
-                        statuses.setdefault(key, set()).add(status)
+                        if section in {"requirements", "preferred"}:
+                            statuses.setdefault(key, set()).add(status)
                         result.evidence.append({
                             "skill": skill, "status": status, "section": section,
                             "text": text, "context": clause.strip(), "rule": rule,

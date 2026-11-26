@@ -1,7 +1,9 @@
 
 
-EXPRESSION_RULES_VERSION = "expressions-1.2"
-CATALOG_VERSION = 'professional-catalog-1.5'
+from scorer.skill_catalog_extension import EXTRA_ALIASES, EXTRA_DISPLAY_NAMES, EXTRA_SKILLS
+
+EXPRESSION_RULES_VERSION = "expressions-1.3"
+CATALOG_VERSION = 'professional-catalog-1.7'
 
 DEFAULT_SKILLS = ('Python',
  'Java',
@@ -213,6 +215,11 @@ DISPLAY_NAMES = {
     "kudu": "Kudu", "iceberg": "Iceberg", "airflow": "Airflow", "nifi": "NiFi",
     "dwh": "DWH", "data lake": "Data Lake", "iac": "IaC",
 }
+
+DEFAULT_SKILLS = tuple(dict.fromkeys((*DEFAULT_SKILLS, *EXTRA_SKILLS)))
+SKILL_ALIASES.update(EXTRA_ALIASES)
+SKILL_ALIASES["оптимизация sql"] += ("оптимизация запросов", "оптимизации запросов")
+DISPLAY_NAMES.update(EXTRA_DISPLAY_NAMES)
 
 # Each verb must immediately precede a known target (optionally through one
 # listed preposition). Arbitrary intervening words are not consumed.
