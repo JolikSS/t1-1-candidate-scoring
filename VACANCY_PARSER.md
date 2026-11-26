@@ -1,5 +1,8 @@
 # Парсер вакансий для актуального main
 
+Обновление извлечения навыков 2.2, установка spaCy и измерение precision/recall:
+см. [SKILL_EXTRACTION.md](SKILL_EXTRACTION.md). По умолчанию используется regex.
+
 Изменения подготовлены для коммита
 `f72886fa53fc071f5d2de54fea3cea76eea6de5e` и API с модулями `api/services`.
 Работа выполняется в ветке `feature/vacancy-parser`, созданной от main.
