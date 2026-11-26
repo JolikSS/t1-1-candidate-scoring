@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import os
 
-from neo4j import GraphDatabase
-
 from scorer.ranking import RANKING_VERSION
 from scorer.skill_matching import canonical_skill_key
 
@@ -31,6 +29,14 @@ RESULT_QUERY = """
 
 class GraphStore:
     def __init__(self, uri=None, user=None, password=None):
+        try:
+            from neo4j import GraphDatabase
+        except ImportError as exc:
+            raise RuntimeError(
+                "Не найден драйвер Neo4j. Установите requirements.txt тем же Python, "
+                "которым запускаете проект, и выберите .venv в VS Code. "
+                "В проекте не должно быть собственного файла neo4j.py."
+            ) from exc
         self.driver = GraphDatabase.driver(
             uri or os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
             auth=(

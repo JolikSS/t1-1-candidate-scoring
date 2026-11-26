@@ -1,0 +1,408 @@
+{
+  "schema_version": 1,
+  "split": "development",
+  "origin": "Handwritten synthetic examples for implementation and debugging; NOT an independent holdout. V01–V05 not used.",
+  "cases": [
+    {
+      "id": "d01-fundamentals",
+      "text": "Разработчик\nТребования:\nЗнание ООП, алгоритмов, структур данных.\nМногопоточное программирование.",
+      "gold": {
+        "required": [
+          "ООП",
+          "Алгоритмы",
+          "Структуры данных",
+          "Многопоточность"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d02-aliases",
+      "text": "Разработчик\nТребования:\nOOP и data structures.\nБудет плюсом:\nDesign patterns.",
+      "gold": {
+        "required": [
+          "ООП",
+          "Структуры данных"
+        ],
+        "preferred": [
+          "Шаблоны проектирования"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d03-training",
+      "text": "Разработчик\nТребования:\nPython обязателен.\nОбучим Docker.",
+      "gold": {
+        "required": [
+          "Python"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": [
+          "Docker"
+        ]
+      }
+    },
+    {
+      "id": "d04-stack",
+      "text": "Разработчик\nНаш стек:\nJava, Kafka.\nОбязанности:\nНастройка Redis.\nТребования:\nSQL.",
+      "gold": {
+        "required": [
+          "SQL"
+        ],
+        "preferred": [],
+        "responsibilities": [
+          "Redis"
+        ],
+        "context": [
+          "Java",
+          "Kafka"
+        ],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d05-negative",
+      "text": "Разработчик\nТребования:\nC++ не требуется.\nGit обязателен.",
+      "gold": {
+        "required": [
+          "Git"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": [
+          "C++"
+        ]
+      }
+    },
+    {
+      "id": "d06-qualified-list",
+      "text": "Разработчик\nТребования:\nPython, SQL обязательны; Docker желателен.",
+      "gold": {
+        "required": [
+          "Python",
+          "SQL"
+        ],
+        "preferred": [
+          "Docker"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d07-compounds",
+      "text": "Разработчик\nТребования:\nC++, C#, .NET, Node.js и CI/CD.",
+      "gold": {
+        "required": [
+          "C++",
+          "C#",
+          ".NET",
+          "Node.js",
+          "CI/CD"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d08-coordination",
+      "text": "Разработчик\nТребования:\nНаписание unit- и интеграционных тестов.",
+      "gold": {
+        "required": [
+          "Unit testing",
+          "Integration testing"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d09-forms",
+      "text": "Разработчик\nТребования:\nОпыт в многопоточном программировании и структурах данных.",
+      "gold": {
+        "required": [
+          "Многопоточность",
+          "Структуры данных"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d10-testing",
+      "text": "Инженер по тестированию\nТребования:\nSelenium, JUnit, TDD.\nБудет плюсом:\nНагрузочное тестирование.",
+      "gold": {
+        "required": [
+          "Selenium",
+          "JUnit",
+          "TDD"
+        ],
+        "preferred": [
+          "Нагрузочное тестирование"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d11-team",
+      "text": "Разработчик\nТребования:\nУмение работать в команде, коммуникативные навыки, критическое мышление.",
+      "gold": {
+        "required": [
+          "Командная работа",
+          "Коммуникация",
+          "Критическое мышление"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d12-architecture",
+      "text": "Разработчик\nТребования:\nSOLID, DDD, микросервисная архитектура, проектирование баз данных.",
+      "gold": {
+        "required": [
+          "SOLID",
+          "DDD",
+          "Микросервисы",
+          "Проектирование баз данных"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d13-backend",
+      "text": "Разработчик\nТребования:\nSpring Boot, Hibernate, JWT.\nБудет плюсом:\nNestJS.",
+      "gold": {
+        "required": [
+          "Spring Boot",
+          "Hibernate",
+          "JWT"
+        ],
+        "preferred": [
+          "NestJS"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d14-data",
+      "text": "Аналитик\nТребования:\nСтатистический анализ, машинное обучение, SQL.\nОбязанности:\nОбработка естественного языка.",
+      "gold": {
+        "required": [
+          "Статистический анализ",
+          "Машинное обучение",
+          "SQL"
+        ],
+        "preferred": [],
+        "responsibilities": [
+          "Обработка естественного языка"
+        ],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d15-no-substrings",
+      "text": "Разработчик\nТребования:\nСоставление документации.\nОписание должности:\nSpringfield, teamworkish, Dockerized, GitHubber, GitOpsify.",
+      "gold": {
+        "required": [],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d16-no-inference",
+      "text": "Разработчик\nТребования:\nFastAPI.\nБудет плюсом:\nPytest.",
+      "gold": {
+        "required": [
+          "FastAPI"
+        ],
+        "preferred": [
+          "Pytest"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d17-company",
+      "text": "Разработчик\nО компании:\nМы используем Python, Docker и SQL.\nТребования:\nGit.",
+      "gold": {
+        "required": [
+          "Git"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d18-business",
+      "text": "Аналитик\nТребования:\nBPMN и UML.\nБудет плюсом:\nТайм-менеджмент и решение проблем.",
+      "gold": {
+        "required": [
+          "BPMN",
+          "UML"
+        ],
+        "preferred": [
+          "Тайм-менеджмент",
+          "Решение проблем"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d19-testing-english",
+      "text": "Test engineer\nRequirements:\nUnit tests, integration tests, test automation.\nNice to have:\nCypress.",
+      "gold": {
+        "required": [
+          "Unit testing",
+          "Integration testing",
+          "Автоматизация тестирования"
+        ],
+        "preferred": [
+          "Cypress"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d20-alternative",
+      "text": "Разработчик\nТребования:\nPostgreSQL или MySQL.",
+      "gold": {
+        "required": [
+          {
+            "any_of": [
+              "PostgreSQL",
+              "MySQL"
+            ]
+          }
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d21-conditions",
+      "text": "Разработчик\nТребования:\nGit.\nУсловия:\nОбучение Python.",
+      "gold": {
+        "required": [
+          "Git"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [
+          "Python"
+        ],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d22-context-marker",
+      "text": "Разработчик\nНаш стек:\nDocker обязателен для сервиса.\nТребования:\nLinux.",
+      "gold": {
+        "required": [
+          "Linux"
+        ],
+        "preferred": [],
+        "responsibilities": [],
+        "context": [
+          "Docker"
+        ],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d23-versions",
+      "text": "Разработчик\nТребования:\nPython3.12, PostgreSQL.\nБудет плюсом:\nNode JS.",
+      "gold": {
+        "required": [
+          "Python",
+          "PostgreSQL"
+        ],
+        "preferred": [
+          "Node.js"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    },
+    {
+      "id": "d24-spacing",
+      "text": "Разработчик\nТребования:\nC++, C# и Node . JS.\nБудет плюсом:\nCI / CD.",
+      "gold": {
+        "required": [
+          "C++",
+          "C#",
+          "Node.js"
+        ],
+        "preferred": [
+          "CI/CD"
+        ],
+        "responsibilities": [],
+        "context": [],
+        "conditions": [],
+        "not_required": []
+      }
+    }
+  ]
+}

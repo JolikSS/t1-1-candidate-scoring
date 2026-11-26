@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, replace
 from functools import lru_cache
-import re
 
 from scorer.expression_catalog import ACTIVITY_VERBS, DISPLAY_NAMES, SKILL_ALIASES
-
 
 _ALIAS_TO_CANONICAL = {alias: key for key, variants in SKILL_ALIASES.items() for alias in (key, *variants)}
 _STRONG_BREAK = re.compile(r"[;!?\n]|\.(?=\s|$)|\s+(?:а(?!\s+также\b)|но|однако|but|however)\s+", re.I)
@@ -17,7 +16,8 @@ _NEGATIVE = {
     "requirement": re.compile(
         r"\b(?:не\s+(?:требу(?:ется|ются)|обязател(?:ен|ьн(?:о|а|ы))|нуж(?:ен|на|но|ны)|"
         r"явля(?:ется|ются)\s+обязательн(?:ым|ыми))|необязател(?:ен|ьн(?:о|а|ы))|"
-        r"not\s+(?:required|mandatory|necessary))\b", re.I,
+        r"not\s+(?:required|mandatory|necessary)|обучим|научим|обучаем\s+с\s+нуля|"
+        r"we\s+(?:will\s+)?teach)\b", re.I,
     ),
     "experience": re.compile(
         r"\b(?:не\s+(?:знаю|владею|использу\w*|работа\w*|имею|знаком\w*|освоил\w*|"
@@ -37,6 +37,9 @@ _ACTIVITIES = {
     for key, verbs in ACTIVITY_VERBS.items()
 }
 _API = re.compile(r"(?<![\w.])(?:api|апи)(?!\w)", re.I)
+COORDINATED_TESTS = re.compile(
+    r"\b(unit|юнит)[-–—]\s+и\s+интеграционн(?:ые|ых|ыми)\s+тест(?:ы|ов|ами|ах)\b", re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -80,6 +83,7 @@ def _alias_pattern(alias: str) -> str:
                 expression += "".join("[" + ch + twins[ch.lower()] + "]" if ch.lower() in twins else re.escape(ch) for ch in part)
             else:
                 expression += re.escape(part).replace("е", "[её]")
+            expression = expression.replace(r"\-", "[-‐‑‒–—]")
     return r"(?<![\w.])" + expression + r"(?![\w+#]|\.(?=\w))"
 
 
@@ -113,6 +117,10 @@ def _raw_mentions(text: str, catalog: tuple[str, ...], section: str) -> list[Exp
     for priority, (key, name, pattern, requested) in enumerate(_patterns(catalog)):
         for match in pattern.finditer(text):
             candidates.append((match.start(), -len(match.group()), priority, key, name, match.end(), requested))
+    if any(canonical_skill_key(name) == "unit testing" for name in catalog):
+        for match in COORDINATED_TESTS.finditer(text):
+            start, end = match.span(1)
+            candidates.append((start, start - end, -1, "unit testing", "Unit testing", end, True))
     result = []
     occupied_until = -1
     for start, _, _, key, name, end, requested in sorted(candidates):

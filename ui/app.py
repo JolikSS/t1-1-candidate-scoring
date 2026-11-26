@@ -8,6 +8,12 @@ from ui.upload_view import render_upload
 def main():
     st.set_page_config(page_title="Подбор кандидатов", page_icon="📄", layout="wide")
     st.title("Подбор кандидатов")
+    page = st.sidebar.radio("Раздел", ["Подбор кандидатов", "Проверка навыков"])
+    if page == "Проверка навыков":
+        from ui.skill_evaluation_view import render_skill_evaluation
+
+        render_skill_evaluation()
+        return
     render_upload()
     render_results()
 

@@ -9,9 +9,6 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 
-from scorer.expression_catalog import DEFAULT_SKILLS
-from scorer.skill_matching import find_skill_mentions
-
 from Parser.document_structure import (
     clean_export_text,
     compile_headings,
@@ -20,6 +17,8 @@ from Parser.document_structure import (
     select_job_title,
     title_candidate,
 )
+from scorer.expression_catalog import DEFAULT_SKILLS
+from scorer.skill_matching import find_skill_mentions
 
 
 class ResumeParseError(ValueError):
@@ -121,7 +120,7 @@ def _legacy_sections(text: str) -> dict[str, list[str]]:
     return result
 
 
-PARSER_VERSION = "rules-2.9"
+PARSER_VERSION = "rules-2.10"
 EXTRA_ALIASES = {
     "title": {"desired position", "desired role", "job title", "должность", "желаемая должность и зарплата"},
     "summary": {"summary", "professional summary", "profile", "профессиональное резюме"},
@@ -440,8 +439,8 @@ def extract_resume_text(file_name: str, content: bytes) -> str:
     raise ResumeParseError("Поддерживаются только PDF и TXT.")
 
 
-def parse_resume_bytes(file_name: str, content: bytes, skill_catalog: list[str] | None = None) -> ParsedResume:
-    return parse_resume_text(extract_resume_text(file_name, content), skill_catalog)
+def parse_resume_bytes(file_name: str, content: bytes, skill_catalog: list[str] | None = None, *, skill_backend="regex") -> ParsedResume:
+    return parse_resume_text(extract_resume_text(file_name, content), skill_catalog, skill_backend=skill_backend)
 
 
 def redact_identifiers(text: str) -> str:
@@ -452,7 +451,7 @@ def redact_identifiers(text: str) -> str:
     return pattern.sub(lambda m: m.group() if m[1] in {"России", "Союза", "Адмирала"} else "[имя удалено]", text)
 
 
-def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> ParsedResume:
+def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None, *, skill_backend="regex") -> ParsedResume:
     """Parse in memory; no original filename or raw text is retained in the result."""
     if not isinstance(raw_text, str):
         raise ResumeParseError("Текст резюме должен быть строкой.")
@@ -474,7 +473,15 @@ def parse_resume_text(raw_text: str, skill_catalog: list[str] | None = None) -> 
     education = extracted["education"]
     title = extracted["title"]
     professional = "\n\n".join(value for value in extracted.values() if value)
-    skills = find_skill_mentions(professional, catalog)
+    skills = find_skill_mentions(professional, catalog, backend=skill_backend)
+    details["skill_backend"] = skill_backend
+    if skill_backend != "regex":
+        from scorer.skill_matching import skill_mentions
+
+        details["skill_evidence"] = [
+            {"skill": m.name, "section": "professional_text", "text": m.text, "start": m.start, "end": m.end}
+            for m in skill_mentions(professional, catalog, backend=skill_backend) if not m.negated
+        ]
     # Raw input is intentionally not returned: it may contain personal data.
     return ParsedResume("", None, professional, professional, skills,
                         experience, education, title, details)

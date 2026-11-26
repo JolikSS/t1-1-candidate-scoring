@@ -1,0 +1,280 @@
+{
+  "note": "The 55 vacancies used in previous parser development. Do not treat copies as independent holdout.",
+  "documents": [
+    {
+      "source": "vacancies/45937931.pdf",
+      "file_sha256": "b84a406deac4c7c85bfeafad335979fe7fc439dc659560df319edde0c9cb8971",
+      "text_sha256": "4bf37d002131fb075a0fdde5d41c77440d096d9af4fec1c375a5ece52d57d273"
+    },
+    {
+      "source": "vacancies/49826908.pdf",
+      "file_sha256": "eb593861106c85cc3059444c661f4093e1d78e8937ac4b4a3ecd6cbbdc77f6ef",
+      "text_sha256": "795a5176285553c70166d24b7a5d6bd811451351472fc9bb742f46ed7cab6cb7"
+    },
+    {
+      "source": "vacancies/50979653.pdf",
+      "file_sha256": "4bf2bd0acac5839ae08a7859c392c35b9ea05b1fbaf772870e7f75fae7d1fc68",
+      "text_sha256": "403c370683dfeeec6d4afa82a1fca6daedb177194ff62c1ba25f5b4217e9641f"
+    },
+    {
+      "source": "vacancies/51780741.pdf",
+      "file_sha256": "bf2bfcb9ff28d6c54a59bfbcce9fadc2fafc7ce8860cb7e4c1b8357dc7b5103d",
+      "text_sha256": "78b55c2e902a725ca7de2232d3fc8578720d9cbecaf738120a7e800a5e5d2d06"
+    },
+    {
+      "source": "vacancies/51919037.pdf",
+      "file_sha256": "3f40d0db5f12620719d1ca25405865c538dbb8c0be955c7cf057110ef1662462",
+      "text_sha256": "f5d25b564275696ae7eb8051af2d848200d3565a5c3e57038b19809419b9648a"
+    },
+    {
+      "source": "vacancies/51919055.pdf",
+      "file_sha256": "190c68ba361fe9b9d527d194174de6067d910809231c2607aeebada1c722f8f2",
+      "text_sha256": "448222f91f339be1f08d28831f765b596cb3437348001b0da77235f0a4b12f7e"
+    },
+    {
+      "source": "vacancies/51921335.pdf",
+      "file_sha256": "01296027158fc0c7d21367ea82644539b9035dd0d8ea7a2d3ca330438afdeba1",
+      "text_sha256": "e405e2e94825a6e1f82785b676edaf0c309ea1e9434cb4e705da0ef3906693e6"
+    },
+    {
+      "source": "vacancies/51921356.pdf",
+      "file_sha256": "2e6700022b6c0ae19450a8286d97119a0554566fea1cff083c70534718a7424b",
+      "text_sha256": "e00ae2b18d9c789e10303b27c29f2f3196e973da22a10ca4663dbd6e99bbb781"
+    },
+    {
+      "source": "vacancies/51933255.pdf",
+      "file_sha256": "708c6d557aab817ca8354c1c72dc289c463fb751ddfacf60f119d11d067ba84c",
+      "text_sha256": "05b10cd5bc2d90afd9bd8a2ff4fcdd3cfbc066d03b2d824dbc084a4bca5306b1"
+    },
+    {
+      "source": "vacancies/51981322.pdf",
+      "file_sha256": "0a4f3013c22af162a161c1370c654a59d4694bee1e2fbe065be0fa4779eff78b",
+      "text_sha256": "31dce6cd72afb4b2f411fe01efa4c06cf2d2a01d7fd51227ba11a3cbeb391538"
+    },
+    {
+      "source": "vacancies/52008953.pdf",
+      "file_sha256": "f54bf81ec6fa634e0c5b5baba5938dd8e72c16f376ae1f901c8a70281e36827b",
+      "text_sha256": "79f094d9be05c5519e0640fb7637fdd4f126726f3db91d6f2632d17a211675f4"
+    },
+    {
+      "source": "vacancies/52008995.pdf",
+      "file_sha256": "89f3c437e5ab4b56a54bd83e562e65f4c0381735313715cf08f3b9d704ce3a9f",
+      "text_sha256": "e94a6734818bf3bcbea0ba5204af8c8f2e93bad5b94adc9967ee0f1a27fc7e13"
+    },
+    {
+      "source": "vacancies/52042515.pdf",
+      "file_sha256": "9e218efd0ac8b46cee078fffc0d672fc2248807907acb6ee3f5e846cb4d5486e",
+      "text_sha256": "86fdce5a7586d6c33f613b862c7d7e8ae35a5ecc775b8a396d5c00972f0c41e3"
+    },
+    {
+      "source": "vacancies/52084600.pdf",
+      "file_sha256": "827aac016c940f197ebf0bcfe9a198fecde6452250bd96bf26b2741a0b18f811",
+      "text_sha256": "95df8223ec2983a8fb3b7fec01ab3da31c2846dc3fad26261194d2abe97ae535"
+    },
+    {
+      "source": "vacancies/52084601.pdf",
+      "file_sha256": "b07a0eb2b4f2cca38ad77450b57a26b842968eedeb45c4b67785c1459d941279",
+      "text_sha256": "69aede4bf7061e06e8043a0039a04df00c1c5a027d19fd43939c44a3f5332214"
+    },
+    {
+      "source": "vacancies/52084651.pdf",
+      "file_sha256": "1349adbd3c5ccdbdb59a3af2d698839de2d331d4210fcb61cf47661bb38bf459",
+      "text_sha256": "cb74d679ca2b90517e569cd48ddbf5215067336c9409b61948ff88be0387f2c1"
+    },
+    {
+      "source": "vacancies/52103699.pdf",
+      "file_sha256": "b545f79a075ddcb8b561fdb4aa7b07659b6cdd7f0d73147832ba73ba325da1a3",
+      "text_sha256": "c65dcdeee7942fab897b40ba7ad049d3ec18d57b5323ae60d3162fe76aad353c"
+    },
+    {
+      "source": "vacancies/52115827.pdf",
+      "file_sha256": "a3c2050f1bdc527d8ae59087831fef01a360f4b54844f22a3546cb3964734b1d",
+      "text_sha256": "88aab2698028b22e7a573553ce58c89c7a5f9794b8e4ec7ca8ef0477e597aa10"
+    },
+    {
+      "source": "vacancies/52132801.pdf",
+      "file_sha256": "fd45a042169d8288a0c576ac59548c470c5c06db37088b515e18e4953afbf56b",
+      "text_sha256": "57b6258da03d4a2a0a26fdc6b761fad5643939f9985fb4ab8316073ae4570043"
+    },
+    {
+      "source": "vacancies/52145323.pdf",
+      "file_sha256": "ece3173b1d582be4e9fcb6c2fcf1523d04aa8f4c6b7428b65479536f4e7f1e29",
+      "text_sha256": "521536242e4d0f76704df016e59d7dfc2571dc1d7dbded82977e41ee2f625f92"
+    },
+    {
+      "source": "vacancies/52149970.pdf",
+      "file_sha256": "c46c582fe74682111d3e98d5028685b30e244eca59fbb5ef0b7076d613cc8727",
+      "text_sha256": "2fe6efbff3a6c7aacf0167861348e18f3994094cd5094a5aa644c557083f8332"
+    },
+    {
+      "source": "vacancies/52150412.pdf",
+      "file_sha256": "17b1073f8cabf4cc3d54c22a019c9eb118b5a81f5596903262c683511af9aadf",
+      "text_sha256": "709fea73a2380492beb90b04dafb2814849b7ad661d9a778b54f73b5d781046e"
+    },
+    {
+      "source": "vacancies/52150442.pdf",
+      "file_sha256": "0e3308e6b628b16f4cbe74c31ccd579bf38ebbb15b0cd23d8a6fddb7a1ede322",
+      "text_sha256": "641fce0743b501cb87b0f506e62cfc6ed899a642b44de0c502d758547416fa26"
+    },
+    {
+      "source": "vacancies/52163600.pdf",
+      "file_sha256": "5c70c558ecffb2334e75a2f1dd1658b1355c5c21d10910ec26de915c3f790c30",
+      "text_sha256": "1de90989685d843d1399bc23e4393a235d61bb3f34fef36559cc77f8c6f5753e"
+    },
+    {
+      "source": "vacancies/52168507.pdf",
+      "file_sha256": "0d7fa2aaa3faba53d7da8f9b3b097d3d5e7d711e7c9aa794392898c75b1639bc",
+      "text_sha256": "d6c8a8cb71a6948412fd8ea0baa711c7851e0f56478f8ced5ed76fbd5ff8aff3"
+    },
+    {
+      "source": "vacancies/52172534.pdf",
+      "file_sha256": "21c19bbb9f5144ecbbf9f0d6edfdc6d1cb1f0f1214f59b6a6b47acf67223dae5",
+      "text_sha256": "fd3cd191bbe8a3e687251e806d82aadd5cc144e427837723bf1ae26d34e04aa9"
+    },
+    {
+      "source": "vacancies/52173341.pdf",
+      "file_sha256": "5209ea9d0b7562decd5d2afee834f67591dcf214e8686d3246f6be96d164b784",
+      "text_sha256": "cec1847e19fc761257c8fc184452697ebe8c95a2327689505f9aca6f3387755f"
+    },
+    {
+      "source": "vacancies/52187024.pdf",
+      "file_sha256": "a2319bd3670ddd6c91df3e83b94c9fc2708321fec13d409a3d1b1009c06f151b",
+      "text_sha256": "7d2f365a3c98e95e018136588e2aed9ab9f81ef97304183dd8a47b25313b376d"
+    },
+    {
+      "source": "vacancies/52187149.pdf",
+      "file_sha256": "03410c39685eeaa4152c32cae84cdffc49c9a364d9793e437473d83f4a885b72",
+      "text_sha256": "fcd4e935b8d9e90e5c20b412208e8f1190a18412cbf490cd790ef96df51d49f6"
+    },
+    {
+      "source": "vacancies/52030860.pdf",
+      "file_sha256": "d96bc3edbdc91f39740516b579782699bf9dfd3d96640b64c2ade42b86af5987",
+      "text_sha256": "f8614658b406779e820558e3e2571d6c2250434fe0e3d540b8e65bb4d4e6482e"
+    },
+    {
+      "source": "vacancies/52111551.pdf",
+      "file_sha256": "2320faacdeae73580a190b808e6980b8ccab28c588a6bf06465dc936803de7c3",
+      "text_sha256": "66b30f5b940e21a06d5df39de69cd474b8c75205bf0b6b3051563c0db612858a"
+    },
+    {
+      "source": "vacancies/52138035.pdf",
+      "file_sha256": "e21ef44bd21c694e1b7355533a5f83734d04e8c13e95d19daabc2489518c6e0e",
+      "text_sha256": "6406210926c6a25c0f5f08dddbe5c9330bd869d514f73ba2f8a04efdd86eb7f2"
+    },
+    {
+      "source": "vacancies/52145664.pdf",
+      "file_sha256": "c0ceb4bd36e3075747311ac984f0f2df1934194830f1c13f0589ebfa45f61170",
+      "text_sha256": "9abcfa875d6d6b7bb94861e517c5ea965aee790e8d544555747479927bdd32a7"
+    },
+    {
+      "source": "vacancies/52186959.pdf",
+      "file_sha256": "c9ff4e88c54595f00d4602c582fa780d1fdc0afc96ef97541e134bfb49e237ab",
+      "text_sha256": "fcfdab1320a21509222cafde319db489275fa04b69c6c93afdbdf9b512bc0b9a"
+    },
+    {
+      "source": "vacancies/52192677.pdf",
+      "file_sha256": "67c8a633eeebd60a904e5027f1303e2019b550ee88fbbe38f4ef659544d4c496",
+      "text_sha256": "49d357fea1adbae6a78495f05fe9446f458aa936aff4145a5656c700011d3795"
+    },
+    {
+      "source": "vacancies/52201844.pdf",
+      "file_sha256": "5809eec0bfe914de53f9c333790895058b1684ee8e57238605a536a809f6a1ef",
+      "text_sha256": "d236b1c4f66147c7c5fb264a33e1456161401c8d958ca27785ee6a497e1f296e"
+    },
+    {
+      "source": "vacancies/52201870.pdf",
+      "file_sha256": "b69a18678f66f0ee864235ce3ce62baf806b805aeec7acff3ca874a12b0b21a5",
+      "text_sha256": "877546cf2296eb87b6e5085c55dc9752e69c88ed2fff3ebdb0be57901c8ca5ab"
+    },
+    {
+      "source": "vacancies/52201897.pdf",
+      "file_sha256": "25930fce25f931c19c6b09c87604400779ad5e603098a448954ebc8e19394610",
+      "text_sha256": "cb9ee6d9044affc1c942bb9af477dcc9116b5b78103e38621b3eb3bcea95edb1"
+    },
+    {
+      "source": "vacancies/52201923.pdf",
+      "file_sha256": "5ecf15f11970805edb57ae61ed1971c6c3306dfa9c67583d54fb0a5c928c2f99",
+      "text_sha256": "bef96f3b8753428338b819ad9723f8fed91f29ccda0ecbed07f41d44a9296191"
+    },
+    {
+      "source": "vacancies/52202009.pdf",
+      "file_sha256": "91cd83641bad2095be35e630a8a25f4fbc04388dc4049f440913d104e3493bd6",
+      "text_sha256": "58e1d7cb5d149362001c8924e15f1727726a5f50db97b65c404b73c658f111d7"
+    },
+    {
+      "source": "vacancies/52229075.pdf",
+      "file_sha256": "e01ddfa85ef3951b7ee835a1b08312e3e57c3eb0037b01bcd141d67b7a838a67",
+      "text_sha256": "c6ef84dbd317a2f91d646c507dd2f04cbcf66f6c715bb91b082c0112122d069d"
+    },
+    {
+      "source": "vacancies/52235257.pdf",
+      "file_sha256": "095a76417ab13152482b6b52660048fa0660a36e751fae2befd6e448942cb4e5",
+      "text_sha256": "d9b3b8d3b134d8f886e97beff53cabae871048493a63cba9ba5ce8ab38ae98a3"
+    },
+    {
+      "source": "vacancies/52235265.pdf",
+      "file_sha256": "c421c3c5ee80d1c38cfd3bd224a79444c7b38e389651eedc300858bbeb766ab0",
+      "text_sha256": "9988d2f49f2b76b6a1cd47c4d52c19fd0eb485772a7efe92b39c89c7ab909938"
+    },
+    {
+      "source": "vacancies/52236577.pdf",
+      "file_sha256": "9b8007687f5798da4e8d36a8c60667df650dcd5b95ee309dd12b7116c903b1cb",
+      "text_sha256": "318ac77c1b18f65ad5a734acffdd7307e9e211902f6e3aacb0ffdad43880e815"
+    },
+    {
+      "source": "vacancies/52236593.pdf",
+      "file_sha256": "0bcddec95ea3ea37b338a1a7d3f2eea05c97ac16042339e4718288b4302b90b6",
+      "text_sha256": "316123d623fda086c6bf9344a9f8b8a93d13363306e5406f2498d0de66b4c240"
+    },
+    {
+      "source": "vacancies/52236836.pdf",
+      "file_sha256": "55b583723cd9e95e807184b4970bc88da9b6f72c77e226e5ec61cb9abee6d314",
+      "text_sha256": "d1896f3ee25eb2de00f174c287b839882df4c4c65d80b9123b3fc6d0cb9d188f"
+    },
+    {
+      "source": "vacancies/52239417.pdf",
+      "file_sha256": "c1b774ec970ee6c40940e84b06e268734ef0d792f40efe90df1f8220b58bc0cc",
+      "text_sha256": "de45128067c3374d767de325d837814a1552b81856b9107dc287bb4d487cf74c"
+    },
+    {
+      "source": "vacancies/52247023.pdf",
+      "file_sha256": "7be0869afc1654258cde5edf4d8ddcbea0b2272a32fa3342fe7663f6b415a475",
+      "text_sha256": "fd00849695d0dd486d63d9c6fe429262df04c76468619337389eb1858a1941aa"
+    },
+    {
+      "source": "vacancies/52258165.pdf",
+      "file_sha256": "efe2e3580d948fa776917e31713087cb43358d782f26edade36ba9fb9f6f6164",
+      "text_sha256": "2aa0a60abac399009b58edcdaf600626a5e98169717b476d563f0f0e5ca7806e"
+    },
+    {
+      "source": "vacancies/52258175.pdf",
+      "file_sha256": "e2ce9d1c13d682b606e62960db63b6ce40e56d9e933d97ae6415a7ed14eedfb8",
+      "text_sha256": "eb16a98e2bcb38563c2e12a95c0dd7e7b543b43da2e6032049a4b94e83fe5bea"
+    },
+    {
+      "source": "vacancies/52258269.pdf",
+      "file_sha256": "23eb5e3a23d579b052b6398f87db1d41e6756c2f92ffc45b1362b1f74e8ca096",
+      "text_sha256": "97bf54e9c385562a036a6226061b2776cd5a4ff5e2f8f7140dfba5ecd1e6d5c8"
+    },
+    {
+      "source": "vacancies/52261595.pdf",
+      "file_sha256": "f57ca065af2f3d5a95ca511284704a2435eac40cc7cdf99438d0fef0739b9792",
+      "text_sha256": "4684665cd9d8909723d713daa9f7287b1a88b56b1173cb109f49febba7543602"
+    },
+    {
+      "source": "vacancies/52264060.pdf",
+      "file_sha256": "163ed1cc7d74ed8b9d860dbaef81872b72c141e4b4eb96fd58bbaf0fa3651859",
+      "text_sha256": "367ad7f36198ddc6434fb0c8a33ae4a3796fd028bc13b6c791dd9a60246a4ac2"
+    },
+    {
+      "source": "vacancies/52266887.pdf",
+      "file_sha256": "44e01693be70d7e6b18603edae5c44176225b1eaf4fd466a7586549d128c6ebf",
+      "text_sha256": "7dc9a4a63efcf8bf5ff85bfa18b27cdd580fe7d858a5047322e9e4d894cd7861"
+    },
+    {
+      "source": "vacancies/52266914.pdf",
+      "file_sha256": "96b776017c6721e5773b4f8d2d020983eb5fab1c8b3d65d19404c71dd305fa40",
+      "text_sha256": "22243bf748c192bb3dd0d52095284883494c28e337f0290f3fbc5323aaa3233d"
+    }
+  ]
+}

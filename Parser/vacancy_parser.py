@@ -6,14 +6,21 @@ import re
 from dataclasses import dataclass, field
 
 from Parser.document_structure import (
-    BULLET, COMPANY, CONTACT, NOISE, compile_headings, match_heading,
-    normalize_line, select_job_title, title_candidate,
+    BULLET,
+    COMPANY,
+    CONTACT,
+    NOISE,
+    compile_headings,
+    match_heading,
+    normalize_line,
+    select_job_title,
+    title_candidate,
 )
 from Parser.vacancy_input import VacancyParseError, clean_vacancy_lines, extract_vacancy_text
 from Parser.vacancy_requirements import classify_vacancy_skills
 from scorer.expression_catalog import CATALOG_VERSION, DEFAULT_SKILLS
 
-PARSER_VERSION = "vacancy-rules-2.1"
+PARSER_VERSION = "vacancy-rules-2.3"
 
 
 SKILL_CATALOG = list(DEFAULT_SKILLS)
@@ -263,10 +270,14 @@ def _logical_lines(lines: list[str]) -> list[str]:
     return result
 
 
-def parse_vacancy_text(text: str, skill_catalog: list[str] | None = None) -> ParsedVacancy:
+def parse_vacancy_text(
+    text: str, skill_catalog: list[str] | None = None, *, skill_backend: str = "regex",
+) -> ParsedVacancy:
     """Parse already extracted text. Unknown skills stay in the original text."""
     if not text.strip():
         raise VacancyParseError("Пустой текст вакансии.")
+    if skill_backend not in {"regex", "spacy"}:
+        raise VacancyParseError("Неизвестный способ извлечения навыков: " + skill_backend)
     from Parser.vacancy_input import MAX_TEXT_CHARS
 
     if len(text) > MAX_TEXT_CHARS:
@@ -280,7 +291,12 @@ def parse_vacancy_text(text: str, skill_catalog: list[str] | None = None) -> Par
     requirements = " ".join(sections["requirements"])
     responsibilities = " ".join(sections["responsibilities"])
     description = _professional_description(sections)
-    classification = classify_vacancy_skills(sections["requirements"], sections["preferred"], catalog)
+    title_end = title_details.get("end_line_number", 0)
+    audit_sections = _extract_sections(_section_lines(lines[title_end:]), initial_section="context")
+    classification = classify_vacancy_skills(
+        sections["requirements"], sections["preferred"], catalog, backend=skill_backend,
+        other_sections={name: audit_sections[name] for name in ("responsibilities", "context", "conditions")},
+    )
     warnings = [*title_warnings, *classification.warnings]
     if not requirements:
         warnings.append("missing_requirements")
@@ -305,6 +321,7 @@ def parse_vacancy_text(text: str, skill_catalog: list[str] | None = None) -> Par
         description=description[:20000], required_skills=classification.required_skills,
         preferred_skills=classification.preferred_skills,
         parse_details={"parser_version": PARSER_VERSION, "catalog_version": CATALOG_VERSION,
+                       "skill_backend": skill_backend,
                        "skill_evidence": classification.evidence,
                        "title_selection": title_details, "warnings": warnings},
     )

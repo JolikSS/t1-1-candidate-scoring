@@ -1,2 +1,1 @@
-# Standalone vacancy parser; no databases, web services or model downloads.
-pypdf>=5.0,<7.0
+pypdf==6.21.4
