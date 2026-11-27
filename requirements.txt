@@ -14,3 +14,4 @@ neo4j==5.28.8
 python-dotenv==1.2.2
 psutil==7.2.2
 simplemma==1.2.0
+-r requirements-parser.txt
