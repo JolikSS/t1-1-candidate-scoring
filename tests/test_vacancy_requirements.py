@@ -161,9 +161,10 @@ class VacancyRequirementTests(unittest.TestCase):
                 )
 
     def test_unknown_terms_remain_in_professional_text(self):
-        parsed = self.assert_skills("Требования: Elixir обязателен\nБудет плюсом: Phoenix", [], [])
+        parsed = self.assert_skills("Требования: Elixir обязателен\nБудет плюсом: Phoenix", ["Elixir"], ["Phoenix"])
         self.assertEqual(parsed.requirements, "Elixir обязателен")
         self.assertIn("Phoenix", parsed.description)
+        self.assertIn("unregistered_skill_candidates", parsed.parse_details["warnings"])
 
     def test_conflicting_markers_in_one_item_are_not_silently_resolved(self):
         parsed = self.assert_skills("Требования: Python обязателен / желателен", [], [])

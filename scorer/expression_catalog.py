@@ -2,8 +2,8 @@
 
 from scorer.skill_catalog_extension import EXTRA_ALIASES, EXTRA_DISPLAY_NAMES, EXTRA_SKILLS
 
-EXPRESSION_RULES_VERSION = "expressions-1.3"
-CATALOG_VERSION = 'professional-catalog-1.7'
+EXPRESSION_RULES_VERSION = "expressions-1.4"
+CATALOG_VERSION = 'professional-catalog-1.8'
 
 DEFAULT_SKILLS = ('Python',
  'Java',
@@ -217,7 +217,9 @@ DISPLAY_NAMES = {
 }
 
 DEFAULT_SKILLS = tuple(dict.fromkeys((*DEFAULT_SKILLS, *EXTRA_SKILLS)))
-SKILL_ALIASES.update(EXTRA_ALIASES)
+for _skill, _aliases in EXTRA_ALIASES.items():
+    SKILL_ALIASES[_skill] = tuple(dict.fromkeys((*SKILL_ALIASES.get(_skill, ()), *_aliases)))
+SKILL_ALIASES["javascript"] += ("javascript core", "js core")
 SKILL_ALIASES["оптимизация sql"] += ("оптимизация запросов", "оптимизации запросов")
 DISPLAY_NAMES.update(EXTRA_DISPLAY_NAMES)
 

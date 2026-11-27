@@ -3,7 +3,15 @@
 from functools import lru_cache
 
 from scorer.expression_catalog import DISPLAY_NAMES, SKILL_ALIASES
-from scorer.professional_expressions import ExpressionMention, _with_polarity, canonical_skill_key
+from scorer.lexical_skill_matching import coordinated_candidates, morphological_candidates
+from scorer.professional_expressions import (
+    VERSIONED_SKILLS,
+    ExpressionMention,
+    _patterns,
+    _with_polarity,
+    canonical_skill_key,
+)
+from scorer.skill_catalog_extension import EXTRA_TOKEN_FORMS
 
 
 @lru_cache(maxsize=16)
@@ -47,6 +55,11 @@ def extract_spacy_mentions(text: str, catalog: list[str], *, section: str = "") 
     normalized = text.lower().replace("ё", "е").translate(str.maketrans("‐‑‒–—", "-----"))
     doc = nlp.make_doc(normalized)
     candidates = []
+    # The bounded inflection rules are shared by both backends; PhraseMatcher
+    # alone only recognizes the literal aliases from the catalog.
+    for key, _, pattern, _ in _patterns(values):
+        if key in EXTRA_TOKEN_FORMS or key in VERSIONED_SKILLS:
+            candidates.extend((m.start(), m.start() - m.end(), key, m.end()) for m in pattern.finditer(text))
     for matcher in (phrases, rules):
         for match_id, start, end in matcher(doc):
             key = nlp.vocab.strings[match_id]
@@ -60,6 +73,9 @@ def extract_spacy_mentions(text: str, catalog: list[str], *, section: str = "") 
                                      or (text[right] == "." and right + 1 < len(text) and text[right + 1].isalnum())):
                 continue
             candidates.append((left, -(right - left), key, right))
+    entries = tuple((key, name, (key, *SKILL_ALIASES.get(key, ())), True) for key, name in names.items())
+    candidates.extend((left, length, key, right)
+                      for left, length, _, key, _, right, _ in [*morphological_candidates(text, entries), *coordinated_candidates(text, entries)])
     result, occupied = [], -1
     for start, _, key, end in sorted(set(candidates)):
         if start < occupied:

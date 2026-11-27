@@ -50,12 +50,12 @@ class SkillExperimentTests(unittest.TestCase):
                                  ("Docker", "responsibilities")} <= evidence)
         self.assertNotIn("skill:python", ProfessionalAnalyzer(DEFAULT_SKILLS)("Обучим Python"))
 
-    def test_unstructured_mentions_are_context_only(self):
+    def test_unstructured_explicit_experience_is_a_requirement(self):
         for backend in self.backends():
             result = parse_vacancy_text("Разработчик\nОпыт с Python и PostgreSQL.", skill_backend=backend)
-            self.assertEqual(result.required_skills, [])
+            self.assertEqual(set(result.required_skills), {"Python", "PostgreSQL"})
             evidence = {(r["skill"], r["status"]) for r in result.parse_details["skill_evidence"]}
-            self.assertTrue({("Python", "context"), ("PostgreSQL", "context")} <= evidence)
+            self.assertTrue({("Python", "required"), ("PostgreSQL", "required")} <= evidence)
 
     def test_technical_names_boundaries_and_offsets(self):
         for backend in self.backends():
