@@ -23,6 +23,26 @@ class Upload(io.BytesIO):
 
 
 class SkillUploadTests(unittest.TestCase):
+    def test_phrase_mode_is_recorded_and_can_find_a_new_russian_concept(self):
+        refs, rows = reference_rows({"skills.json": json.dumps(["Теория автоматического управления"]).encode()})
+        files = {"v.txt": "Инженер\nТребования: Знание теории автоматического управления.".encode()}
+        regular = evaluate_uploads(refs, rows, files)
+        expanded = evaluate_uploads(refs, rows, files, discover_phrases=True)
+        self.assertEqual(regular["micro_detection"]["recall"], 0)
+        self.assertEqual(expanded["micro_detection"]["recall"], 1)
+        self.assertTrue(expanded["discover_phrases"])
+
+    def test_unknown_name_discovery_is_measured_and_can_be_disabled(self):
+        refs, rows = reference_rows({"skills.json": b'["QuasarX"]'})
+        files = {"v.txt": b"Engineer\nRequirements:\nQuasarX"}
+        expanded = evaluate_uploads(refs, rows, files)
+        strict = evaluate_uploads(refs, rows, files, discover_unknown=False)
+        self.assertEqual(expanded["micro_detection"]["recall"], 1)
+        self.assertEqual(strict["micro_detection"]["recall"], 0)
+        self.assertTrue(expanded["discover_unknown"])
+        self.assertFalse(strict["discover_unknown"])
+        self.assertIn("Parser/vacancy_discovery.py", expanded["code_sha256"])
+
     def test_unknown_reference_skills_are_missed_not_removed(self):
         refs, rows = reference_rows({"skills.json": b'["Python", "UndiscoveredTechnology"]'})
         result = evaluate_uploads(refs, rows, {"v.txt": b"Requirements:\nPython"})
@@ -78,6 +98,15 @@ class SkillUploadTests(unittest.TestCase):
             app.run()
             self.assertEqual(len(app.metric), 0)
 
+    def test_discovery_switch_invalidates_ui_result(self):
+        inputs = [Upload("r.json", b'["QuasarX"]'), Upload("v.txt", b"Engineer\nRequirements:\nQuasarX")]
+        with patch("streamlit.file_uploader", side_effect=lambda label, **kw: [inputs[0]] if kw.get("key") == "skill_gold" else [inputs[1]]):
+            app = AppTest.from_file("check_skills.py").run()
+            app.button[0].click().run()
+            self.assertEqual(app.metric[0].value, "1.000")
+            app.checkbox[0].uncheck().run()
+            self.assertEqual(len(app.metric), 0)
+
     def test_graph_module_import_does_not_require_driver_until_enabled(self):
         code = (
             "import sys; sys.modules['neo4j']=None; from db.graph_store import GraphStore; "
@@ -99,6 +128,11 @@ class SkillUploadTests(unittest.TestCase):
             "scorer/professional_expressions.py",
             "Parser/vacancy_requirements.py",
             "Parser/vacancy_parser.py",
+            "Parser/vacancy_context.py",
+            "Parser/vacancy_discovery.py",
+            "Parser/vacancy_phrases.py",
+            "scorer/competency_patterns.py",
+            "scorer/lexical_skill_matching.py",
         )
         report = {
             "split": "holdout",

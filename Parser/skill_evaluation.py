@@ -14,7 +14,7 @@ from pathlib import Path
 
 from Parser.resume_parser import extract_resume_text, parse_resume_text
 from Parser.vacancy_input import MAX_FILE_BYTES, extract_vacancy_text
-from Parser.vacancy_parser import parse_vacancy_text
+from Parser.vacancy_parser import PARSER_VERSION, parse_vacancy_text
 from scorer.expression_catalog import CATALOG_VERSION
 from scorer.professional_expressions import canonical_skill_key
 from tools.evaluate_skill_extraction import metrics, score_groups
@@ -140,7 +140,9 @@ def _document(ref: dict, files: dict[str, bytes], *, allow_single=False) -> tupl
 
 
 def evaluate_uploads(
-    refs: list[dict], rows: list[dict], files: dict[str, bytes], *, backend="regex", skill_catalog=None
+    refs: list[dict], rows: list[dict], files: dict[str, bytes], *, backend="regex", skill_catalog=None,
+    discover_unknown=None,
+    discover_phrases=False,
 ) -> dict:
     counts = [0, 0, 0]
     role_counts = [0, 0, 0]
@@ -150,7 +152,7 @@ def evaluate_uploads(
         filename, raw = _document(ref, files, allow_single=len(refs) == 1)
         if ref["kind"] == "vacancy":
             text = extract_vacancy_text(filename, raw)
-            parsed = parse_vacancy_text(text, skill_catalog, skill_backend=backend)
+            parsed = parse_vacancy_text(text, skill_catalog, skill_backend=backend, discover_unknown=discover_unknown, discover_phrases=discover_phrases)
             by_role = {
                 "required": set(map(canonical_skill_key, parsed.required_skills)),
                 "preferred": set(map(canonical_skill_key, parsed.preferred_skills)),
@@ -217,6 +219,13 @@ def evaluate_uploads(
     return {
         "schema_version": "skill-upload-evaluation-v1",
         "backend": backend,
+        "parser_version": PARSER_VERSION,
+        "discover_unknown": skill_catalog is None if discover_unknown is None else bool(discover_unknown),
+        "discover_phrases": bool(discover_phrases),
+        "code_sha256": {
+            path.relative_to(ANNOTATIONS.parents[2]).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for folder in ("Parser", "scorer") for path in sorted((ANNOTATIONS.parents[2] / folder).glob("*.py"))
+        },
         "catalog_version": CATALOG_VERSION if skill_catalog is None else "custom-catalog",
         "micro_detection": metrics(*counts),
         "micro_roles": metrics(*role_counts),
