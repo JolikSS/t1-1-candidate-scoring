@@ -244,10 +244,24 @@ class AvailabilityTests(unittest.TestCase):
     def test_monitor_persists_samples_and_rejects_overwriting_a_window(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "samples.jsonl"
-            with patch("tools.monitor_availability.probe", return_value={"ok": True, "latency_seconds": 0}):
+            # A 10 ms interval is below the resolution of some Windows clocks.
+            # Exercise persisted samples deterministically instead of depending
+            # on real sleeps finishing in a particular scheduler tick.
+            elapsed = [0.0]
+            clock = Mock()
+            clock.monotonic.side_effect = lambda: elapsed[0]
+
+            def advance(seconds):
+                elapsed[0] += seconds
+
+            clock.sleep.side_effect = advance
+            with (
+                patch("tools.monitor_availability.probe", side_effect=lambda *a: {"ok": True, "latency_seconds": 0}),
+                patch("tools.monitor_availability.time", clock),
+            ):
                 report = monitor("http://localhost/health", duration=0.02, interval=0.01, timeout=1, samples_path=path)
-            self.assertGreaterEqual(len(path.read_text().splitlines()), 1)
-            self.assertGreaterEqual(len(load_samples(path)), 1)
+            self.assertEqual(len(path.read_text().splitlines()), 2)
+            self.assertEqual([s["elapsed_seconds"] for s in load_samples(path)], [0.0, 0.01])
             self.assertIsNone(report["meets_target"])
             with self.assertRaises(FileExistsError):
                 monitor("http://localhost/health", duration=1, interval=1, timeout=1, samples_path=path)
