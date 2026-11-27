@@ -22,6 +22,15 @@ def render_skill_evaluation():
         "Документы: PDF, TXT или ZIP", type=["pdf", "txt", "zip"], accept_multiple_files=True, key="skill_documents"
     )
     backend = st.selectbox("Способ извлечения", ["regex", "spacy"], key="skill_backend")
+    discover_unknown = st.checkbox(
+        "Находить новые названия технологий в требованиях вакансий", value=True, key="skill_discover_unknown",
+        help="Расширяет поиск за пределы словаря. Может повысить recall и добавить лишние навыки; сравнивайте precision.",
+    )
+    discover_phrases = st.checkbox(
+        "Расширенный поиск русских профессиональных выражений", value=False,
+        disabled=not discover_unknown, key="skill_discover_phrases",
+        help="Экспериментальный режим: выше recall, но больше лишних навыков. Кандидаты сохраняются с источником unregistered_phrase.",
+    ) and discover_unknown
     array_kind = st.radio(
         "Если JSON — простой массив названий навыков",
         ["vacancy", "resume"],
@@ -50,7 +59,7 @@ def render_skill_evaluation():
             use_container_width=True,
             key="skill_gold_editor",
         )
-        digest = hashlib.sha256(json.dumps([edited, backend], sort_keys=True).encode())
+        digest = hashlib.sha256(json.dumps([edited, backend, discover_unknown, discover_phrases], sort_keys=True).encode())
         for file in [*gold, *documents]:
             digest.update(file.name.encode())
             digest.update(hashlib.sha256(file.getvalue()).digest())
@@ -60,7 +69,9 @@ def render_skill_evaluation():
         if st.button("Рассчитать recall и precision", disabled=not documents, type="primary"):
             with st.spinner("Проверяю навыки…"):
                 result = evaluate_uploads(
-                    refs, edited, uploaded_files([(f.name, f.getvalue()) for f in documents]), backend=backend
+                    refs, edited, uploaded_files([(f.name, f.getvalue()) for f in documents]), backend=backend,
+                    discover_unknown=discover_unknown,
+                    discover_phrases=discover_phrases,
                 )
             st.session_state["skill_evaluation_result"] = result
             st.session_state["skill_evaluation_signature"] = signature

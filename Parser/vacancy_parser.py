@@ -16,11 +16,13 @@ from Parser.document_structure import (
     select_job_title,
     title_candidate,
 )
+from Parser.vacancy_context import continuing_object, infer_statement, split_statements
 from Parser.vacancy_input import VacancyParseError, clean_vacancy_lines, extract_vacancy_text
 from Parser.vacancy_requirements import classify_vacancy_skills
 from scorer.expression_catalog import CATALOG_VERSION, DEFAULT_SKILLS
+from scorer.skill_matching import skill_mentions
 
-PARSER_VERSION = "vacancy-rules-2.3"
+PARSER_VERSION = "vacancy-rules-2.4"
 
 
 SKILL_CATALOG = list(DEFAULT_SKILLS)
@@ -54,6 +56,11 @@ SECTION_ALIASES = {
         "нам было бы интересно пообщаться, если у тебя", "что нужно", "квалификация", "requirements", "what you need",
         "обязательные требования", "обязательные навыки", "must have", "must-have", "required qualifications",
         "требования к квалификации", "что для этого требуется", "что обязательно", "что мы ищем в кандидате",
+        "личные качества", "ваши личные качества (soft skills)", "личностные требования", "необходимые знания",
+        "для нас важно", "что для нас важно", "вам понадобится", "тебе понадобится", "что потребуется",
+        "что важно для нас", "что мы ценим в кандидатах", "наш идеальный кандидат", "идеальный кандидат",
+        "что необходимо знать", "необходимые навыки", "основные компетенции", "ваша квалификация",
+        "your qualifications", "what you bring", "who you are", "minimum qualifications",
     ),
     "preferred": (
         "будет плюсом", "будут плюсом", "будет преимуществом", "желательно",
@@ -78,7 +85,7 @@ SECTION_ALIASES = {
     "context": (
         "наш стек", "технологический стек", "профессиональные навыки", "навыки", "описание должности",
         "о продукте", "о стажировке", "кого ищем", "кого мы ищем", "стек технологий", "что мы используем", "что мы делаем", "что уже есть",
-        "ваши личные качества (soft skills)", "о вакансии", "описание вакансии",
+        "о вакансии", "описание вакансии",
         "уровень квалификации", "уровень", "seniority",
         "как будем работать", "процесс работы", "широкий стек",
     ),
@@ -98,6 +105,7 @@ HEADING_VARIANTS = {
         r"(?:что\s+)?мы\s+(?:ожидаем|жд[её]м)(?:\s+от\s+(?:вас|кандидата|тебя))?",
         r"что\s+(?:ожидаем|жд[её]м)\s+от\s+(?:вас|кандидата|тебя)",
         r"наши\s+ожидания(?:\s+от\s+кандидата|\s*\(требования\s+к\s+кандидату\))?",
+        r"(?:вы|ты)\s+(?:нам\s+)?под(?:ойд[её]те|ойд[её]шь),?\s+если",
     ),
     "responsibilities": (
         r"чем\s+занимается\s+(?:наша\s+)?[\w-]*команда",
@@ -132,7 +140,7 @@ def _title_continuation(title: str, line: str, known_terms: set[str], *, exporte
     """Keep short title qualifiers, stopping at evidence of document body text."""
     if (match_heading(line, HEADINGS) or BULLET.match(line) or COMPANY.search(line)
             or CONTACT.search(line) or PHONE.search(line) or NOISE.match(line)
-            or TITLE_BODY_START.match(line)
+            or TITLE_BODY_START.match(line) or infer_statement(line)
             or re.match(r"^(?:село|город|пос[её]лок|деревня|г\.|рп\.)\s", line, re.I)):
         return False
     if line.endswith((".", "!", "?", ";", ":")) or len(title + " " + line) > 240:
@@ -160,7 +168,7 @@ def _clean_professional_line(line: str) -> str:
     return line if normalize_line(VACANCY_BULLET.sub("", line)).strip(" -–—:|;") else ""
 
 
-def _section_lines(lines: list[str]) -> list[str]:
+def _section_lines(lines: list[str], *, statement_boundaries=False) -> list[str]:
     cleaned = []
     for line in lines:
         heading = match_heading(VACANCY_BULLET.sub("", line), HEADINGS)
@@ -169,11 +177,18 @@ def _section_lines(lines: list[str]) -> list[str]:
             content = _clean_professional_line(heading.content)
             cleaned.append(heading.label + (": " + content if content else ""))
         else:
+            if statement_boundaries and cleaned and infer_statement(normalize_line(VACANCY_BULLET.sub("", line))):
+                previous = cleaned[-1]
+                if continuing_object(previous) and not VACANCY_BULLET.match(line):
+                    cleaned[-1] += " " + _clean_professional_line(line)
+                    continue
+                if not previous.endswith((",", "/", "(", " и", " или")) and previous.count("(") <= previous.count(")"):
+                    cleaned.append("")
             cleaned.append(_clean_professional_line(line))
     return _logical_lines(cleaned)
 
 
-def _extract_sections(lines: list[str], *, initial_section: str = "") -> dict[str, list[str]]:
+def _extract_sections(lines: list[str], *, initial_section: str = "", infer=False, catalog=(), backend="regex", evidence=None) -> dict[str, list[str]]:
     """Collect section content until the next recognized heading.
 
     Inline content requires a colon so ordinary sentences starting with a
@@ -182,16 +197,32 @@ def _extract_sections(lines: list[str], *, initial_section: str = "") -> dict[st
     """
     sections: dict[str, list[str]] = {name: [] for name in SECTION_ALIASES if name != "stop"}
     active = initial_section
+    explicit = False
+    stack = False
     for line in lines:
         heading = match_heading(line, HEADINGS)
         if heading:
-            active = "" if heading.section == "stop" else heading.section
+            active = heading.section
+            explicit = True
+            stack = heading.section == "context" and any(word in heading.label for word in ("стек", "навыки", "продукт", "используем"))
             line = heading.content
-        if not active or not line:
+        if active == "stop" or not line:
             continue
         line = EMAIL_URL.sub(" ", PHONE.sub(" ", line)).strip(" -–—:|")
         if line and not re.search(r"^(?:адрес|телефон|контакты|зарплатная карта)\s*[:：]", line, re.I):
-            sections[active].append(line)
+            if infer and active not in {"requirements", "preferred"}:
+                for part in split_statements(line, catalog, backend=backend):
+                    hint = infer_statement(part, allow_generic=not stack and active != "conditions",
+                                           personal_subject_only=active == "conditions")
+                    target = hint.section if hint else active or "context"
+                    sections[target].append(part + "." if hint and not part.endswith((".", ";", "!", "?", ":")) else part)
+                    if hint:
+                        if evidence is not None:
+                            evidence.append({"text": part, "section": target, "source_section": active, "rule": hint.rule})
+                        if hint.opens_list and not explicit:
+                            active = hint.section
+            elif active:
+                sections[active].append(line)
     return sections
 
 
@@ -262,7 +293,12 @@ def _logical_lines(lines: list[str]) -> list[str]:
         )
         soft_wrap = (line[:1].islower() and not starts_item
                      and previous and not previous.endswith((".", ";", "!", "?")))
-        if result and not marked and not is_heading and (in_bullet or continuation or soft_wrap):
+        compound_wrap = False
+        if previous and not marked and not is_heading and not starts_item and not (in_bullet or continuation or soft_wrap):
+            prefix = previous[-160:]
+            compound_wrap = any(m.start < len(prefix) < m.end
+                                for m in skill_mentions(prefix + " " + line[:160], SKILL_CATALOG))
+        if result and not marked and not is_heading and (in_bullet or continuation or soft_wrap or compound_wrap):
             result[-1] += " " + line
         else:
             result.append(normalize_line(VACANCY_BULLET.sub("", line)))
@@ -271,7 +307,8 @@ def _logical_lines(lines: list[str]) -> list[str]:
 
 
 def parse_vacancy_text(
-    text: str, skill_catalog: list[str] | None = None, *, skill_backend: str = "regex",
+    text: str, skill_catalog: list[str] | None = None, *, skill_backend: str = "regex", discover_unknown: bool | None = None,
+    discover_phrases: bool = False,
 ) -> ParsedVacancy:
     """Parse already extracted text. Unknown skills stay in the original text."""
     if not text.strip():
@@ -283,21 +320,35 @@ def parse_vacancy_text(
     if len(text) > MAX_TEXT_CHARS:
         raise VacancyParseError("Текст вакансии превышает 1 000 000 символов.")
     catalog = SKILL_CATALOG if skill_catalog is None else list(dict.fromkeys(skill_catalog))
+    if discover_unknown is None:
+        discover_unknown = skill_catalog is None
+    if discover_phrases and not discover_unknown:
+        raise VacancyParseError("Поиск новых выражений требует discover_unknown=True.")
     lines = clean_vacancy_lines(text)
     if not lines:
         raise VacancyParseError("После очистки не осталось текста вакансии.")
     title, title_details, title_warnings = _vacancy_title(lines, catalog)
-    sections = _extract_sections(_section_lines(lines))
+    title_end = title_details.get("end_line_number", 0)
+    statement_evidence = []
+    sections = _extract_sections(
+        _section_lines(lines[title_end:], statement_boundaries=True), initial_section="context",
+        infer=True, catalog=catalog, backend=skill_backend, evidence=statement_evidence,
+    )
     requirements = " ".join(sections["requirements"])
     responsibilities = " ".join(sections["responsibilities"])
     description = _professional_description(sections)
-    title_end = title_details.get("end_line_number", 0)
-    audit_sections = _extract_sections(_section_lines(lines[title_end:]), initial_section="context")
     classification = classify_vacancy_skills(
         sections["requirements"], sections["preferred"], catalog, backend=skill_backend,
-        other_sections={name: audit_sections[name] for name in ("responsibilities", "context", "conditions")},
+        other_sections={name: sections[name] for name in ("responsibilities", "context", "conditions")},
+        discover_unknown=discover_unknown,
+        discover_phrases=discover_phrases,
     )
     warnings = [*title_warnings, *classification.warnings]
+    if any(e.get("source", "").startswith("unregistered_") for e in classification.evidence):
+        warnings.append("unregistered_skill_candidates")
+    if not any((heading := match_heading(VACANCY_BULLET.sub("", line), HEADINGS))
+               and heading.section in PROFESSIONAL_SECTIONS for line in lines):
+        warnings.append("unstructured_text")
     if not requirements:
         warnings.append("missing_requirements")
     if not responsibilities:
@@ -322,6 +373,11 @@ def parse_vacancy_text(
         preferred_skills=classification.preferred_skills,
         parse_details={"parser_version": PARSER_VERSION, "catalog_version": CATALOG_VERSION,
                        "skill_backend": skill_backend,
+                       "discover_unknown": discover_unknown,
+                       "discover_phrases": discover_phrases,
+                       "skill_candidates": [entry for entry in classification.evidence
+                                            if entry.get("source", "").startswith("unregistered_")],
+                       "statement_evidence": statement_evidence,
                        "skill_evidence": classification.evidence,
                        "title_selection": title_details, "warnings": warnings},
     )

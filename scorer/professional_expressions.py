@@ -8,6 +8,8 @@ from dataclasses import dataclass, replace
 from functools import lru_cache
 
 from scorer.expression_catalog import ACTIVITY_VERBS, DISPLAY_NAMES, SKILL_ALIASES
+from scorer.lexical_skill_matching import coordinated_candidates, morphological_candidates
+from scorer.skill_catalog_extension import EXTRA_TOKEN_FORMS
 
 _ALIAS_TO_CANONICAL = {alias: key for key, variants in SKILL_ALIASES.items() for alias in (key, *variants)}
 _STRONG_BREAK = re.compile(r"[;!?\n]|\.(?=\s|$)|\s+(?:а(?!\s+также\b)|но|однако|but|however)\s+", re.I)
@@ -37,6 +39,13 @@ _ACTIVITIES = {
     for key, verbs in ACTIVITY_VERBS.items()
 }
 _API = re.compile(r"(?<![\w.])(?:api|апи)(?!\w)", re.I)
+# Major numbers in these names are versions, unlike distinct products ROS2,
+# HTTP2 or IPv6. Specific version constraints stay in the source evidence.
+VERSIONED_SKILLS = frozenset({
+    "java", "python", "php", "c++", "c#", ".net", "asp.net core", "node.js",
+    "react", "vue", "angular", "nuxt", "next.js", "django", "flask", "spring boot",
+    "postgresql", "mysql", "html", "css",
+})
 COORDINATED_TESTS = re.compile(
     r"\b(unit|юнит)[-–—]\s+и\s+интеграционн(?:ые|ых|ыми)\s+тест(?:ы|ов|ами|ах)\b", re.I,
 )
@@ -106,8 +115,19 @@ def _patterns(catalog: tuple[str, ...]) -> tuple[tuple[str, str, re.Pattern, boo
         seen.add(key)
         aliases = tuple(dict.fromkeys((key, *SKILL_ALIASES.get(key, ()))))
         alternatives = sorted((_alias_pattern(alias) for alias in aliases), key=len, reverse=True)
+        for form in EXTRA_TOKEN_FORMS.get(key, ()):
+            expression = ""
+            for index, token in enumerate(form):
+                if index:
+                    expression += r"\s*" if token == "-" or form[index - 1] == "-" else r"\s+"
+                expression += r"(?:" + (r"[-‐‑‒–—]" if token == "-" else token) + ")"
+            alternatives.append(r"(?<![\w.])" + expression + r"(?![\w+#]|\.(?=\w))")
         if key == "python":
             alternatives.insert(0, r"(?<![\w.])python\s*[23](?:\.\d+){0,3}(?![\w.])")
+        if key in VERSIONED_SKILLS:
+            ending = r"(?![\w+#]|\.(?=\w))"
+            suffix = r"\s*(?:v(?:ersion)?\s*)?\d{1,2}(?:\.\d{1,3}){0,3}(?![\w+#]|\.(?=\w))"
+            alternatives[:0] = [_alias_pattern(alias).removesuffix(ending) + suffix for alias in aliases]
         result.append((key, DISPLAY_NAMES.get(key, value), re.compile("|".join(alternatives), re.I), key in requested))
     return tuple(result)
 
@@ -117,6 +137,10 @@ def _raw_mentions(text: str, catalog: tuple[str, ...], section: str) -> list[Exp
     for priority, (key, name, pattern, requested) in enumerate(_patterns(catalog)):
         for match in pattern.finditer(text):
             candidates.append((match.start(), -len(match.group()), priority, key, name, match.end(), requested))
+    entries = tuple((key, name, (key, *SKILL_ALIASES.get(key, ())), requested)
+                    for key, name, _, requested in _patterns(catalog))
+    candidates.extend(morphological_candidates(text, entries))
+    candidates.extend(coordinated_candidates(text, entries))
     if any(canonical_skill_key(name) == "unit testing" for name in catalog):
         for match in COORDINATED_TESTS.finditer(text):
             start, end = match.span(1)

@@ -16,6 +16,11 @@ def require_extraction_quality(report, *, backend="expanded_regex", minimum=0.6)
         "scorer/professional_expressions.py",
         "Parser/vacancy_requirements.py",
         "Parser/vacancy_parser.py",
+        "Parser/vacancy_context.py",
+        "Parser/vacancy_discovery.py",
+        "Parser/vacancy_phrases.py",
+        "scorer/competency_patterns.py",
+        "scorer/lexical_skill_matching.py",
     ):
         if report.get("code_sha256", {}).get(name) != hashlib.sha256((root / name).read_bytes()).hexdigest():
             raise ValueError("После контрольной проверки код изменился — нужен новый контрольный отчёт.")

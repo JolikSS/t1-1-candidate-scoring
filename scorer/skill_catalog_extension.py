@@ -1,4 +1,6 @@
-"""Reviewed general competencies; no entries derived from V01–V05 gold files."""
+"""Reviewed competencies and aliases from the explicitly designated development set."""
+
+from scorer.competency_patterns import REVIEWED_COMPETENCIES
 
 COMPETENCIES = {
     "fundamentals": {
@@ -151,8 +153,28 @@ COMPETENCIES["programming_concepts"] = {
     "Организация рабочих мест": ("организации рабочих мест",),
 }
 
+_known_names = {name.casefold().replace("ё", "е"): name for group in COMPETENCIES.values() for name in group}
+_reviewed_forms = {}
+for _name, _aliases, _forms in REVIEWED_COMPETENCIES:
+    if _name.casefold() == "интеграция api":
+        _name = "API integration"
+    if _name.casefold() == "интеграционное тестирование":
+        _name = "Integration testing"
+    _key = _name.casefold().replace("ё", "е")
+    _found = _known_names.get(_key)
+    if _found:
+        for _group in COMPETENCIES.values():
+            if _found in _group:
+                _group[_found] = tuple(dict.fromkeys((*_group[_found], *_aliases)))
+    else:
+        COMPETENCIES.setdefault("engineering_and_tools", {})[_name] = _aliases
+        _known_names[_key] = _name
+    if _forms:
+        _reviewed_forms[_key] = _forms
+
+EXTRA_TOKEN_FORMS = _reviewed_forms
 EXTRA_SKILLS = tuple(name for entries in COMPETENCIES.values() for name in entries)
-EXTRA_ALIASES = {name.casefold().replace("ё", "е"): aliases
+EXTRA_ALIASES = {name.casefold().replace("ё", "е"): tuple(" ".join(alias.casefold().replace("ё", "е").split()) for alias in aliases)
                  for entries in COMPETENCIES.values() for name, aliases in entries.items()}
 EXTRA_DISPLAY_NAMES = {name.casefold().replace("ё", "е"): name for name in EXTRA_SKILLS}
 
@@ -168,6 +190,7 @@ EXTRA_ALIASES["in-memory databases"] += ("inmemory бд", "inmemory")
 EXTRA_ALIASES["сетевые технологии"] += ("сетевого взаимодействия",)
 EXTRA_ALIASES["администрирование систем"] += ("администрирование серверов", "администрирования linux",)
 EXTRA_ALIASES["astra linux"] += ("astra",)
+EXTRA_ALIASES["astra linux"] += ("asrta linux",)
 EXTRA_ALIASES["моделирование данных"] += ("моделирование dwh", "моделирования dwh")
 EXTRA_ALIASES["техническая документация"] += ("подготовка технических спецификаций", "подготовки технических спецификаций")
 EXTRA_ALIASES["soda dq"] += ("soda",)
@@ -175,3 +198,17 @@ EXTRA_ALIASES["нагрузочное тестирование"] += ("нагру
 EXTRA_ALIASES["управление инцидентами"] += ("разбирать инциденты", "разбор инцидентов с данными")
 EXTRA_ALIASES["автоматизация тестирования"] += ("автотесты", "автотестов")
 EXTRA_ALIASES["файловые системы"] += ("устройства фс", "фс")
+EXTRA_ALIASES["отказоустойчивые системы"] += ("отказоустойчивые сервисы",)
+EXTRA_ALIASES["высоконагруженные системы"] += ("высоконагруженные сервисы",)
+EXTRA_ALIASES["motion design"] += ("дизайн motion",)
+EXTRA_ALIASES["game development"] += ("игровая индустрия", "игровой индустрии")
+EXTRA_ALIASES["3d-печать"] += ("3d-печатью",)
+EXTRA_ALIASES["коммуникация"] += ("коммуникабельность", "коммуникабельный", "коммуникативность", "умение общаться")
+EXTRA_ALIASES["обучаемость"] += ("быстро учиться", "быстрая обучаемость", "обучаемый", "быстро осваивать")
+EXTRA_ALIASES["аналитическое мышление"] += ("аналитический склад ума",)
+EXTRA_ALIASES["ответственность"] += ("ответственный",)
+EXTRA_ALIASES["самостоятельность"] += ("самостоятельный", "автономность")
+EXTRA_ALIASES["инициативность"] += ("инициативный", "проактивность", "проактивный")
+EXTRA_ALIASES["статистический анализ"] += ("статистические методы", "статистических методов", "статистика")
+EXTRA_ALIASES["многопоточность"] += ("разработка многопоточных приложений", "разработки многопоточных приложений")
+EXTRA_ALIASES["javascript"] = EXTRA_ALIASES.get("javascript", ()) + ("ecmascript", "es6", "es2015", "es2016", "es2017", "es2020")

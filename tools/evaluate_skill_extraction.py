@@ -140,7 +140,9 @@ def compare(path: Path, *, min_recall: float = 0.6, development: Path | None = N
         name: hashlib.sha256((root / name).read_bytes()).hexdigest()
         for name in ("Parser/vacancy_parser.py", "Parser/vacancy_requirements.py", "scorer/expression_catalog.py",
                      "scorer/skill_catalog_extension.py", "scorer/professional_expressions.py",
-                     "scorer/skill_matching.py", "scorer/spacy_skill_matching.py", "tools/evaluate_skill_extraction.py")
+                     "scorer/skill_matching.py", "scorer/spacy_skill_matching.py", "tools/evaluate_skill_extraction.py",
+                     "Parser/vacancy_context.py", "Parser/vacancy_discovery.py", "Parser/vacancy_phrases.py",
+                     "scorer/competency_patterns.py", "scorer/lexical_skill_matching.py")
     }
     report["baseline_catalog_sha256"] = hashlib.sha256(BASELINE.read_bytes()).hexdigest()
     report["known_development_manifest_sha256"] = hashlib.sha256(KNOWN_DEVELOPMENT.read_bytes()).hexdigest()
@@ -151,7 +153,8 @@ def compare(path: Path, *, min_recall: float = 0.6, development: Path | None = N
         detection_counts = [0, 0, 0]
         rows, recalls, detection_recalls, role_errors = [], [], [], []
         for case in cases:
-            parsed = parse_vacancy_text(case["text"], catalog, skill_backend=backend)
+            parsed = parse_vacancy_text(case["text"], catalog, skill_backend=backend,
+                                       discover_unknown=name != "baseline_catalog_regex")
             predictions = {role: set() for role in ROLES}
             predictions["required"] = set(map(canonical_skill_key, parsed.required_skills))
             predictions["preferred"] = set(map(canonical_skill_key, parsed.preferred_skills))
